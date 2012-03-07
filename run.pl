@@ -232,75 +232,67 @@ sub print_usage{
 }
 
 
+
+
 use Getopt::Std;
 my %opts;
 
 $config_loaded = 0; 
 @runs =(); 
 
+
+%vars; 
+
 while ($arg = shift){
-    if($arg =~ /\-([ntTsc])/){
-	if($1 eq 't'){
-	    if(defined($n = shift)){
-		$MIN_NUM_THREADS = $n; 
+    if($arg =~ /\-([vc])/){
+	if($1 eq 'v'){
+	    # parse a var argument
+	    # creates a var entry with a list of values for this var
+	    if(defined($var = shift)){
+		$vars{$var} = ();
+		while(defined ($n = shift @ARGV)){
+		    if($n =~ /^-/){
+			unshift @ARGV, $n; 
+			last; 
+		    }
+		    push @{$vars{$var}}, $n; 
+		}
+		print_usage if ($#{$vars{$var}} == 0); 
 	    }
 	    else{
 		print_usage; 
-	    }
-	}
-	elsif($1 eq 'T'){
-	    if(defined($n = shift)){		
-		$MAX_NUM_THREADS = $n; 
-	    }
-	    else{
-		print_usage; 
-	    }
-	}
-	elsif($1 eq 's'){
-	    if(defined($n = shift)){		
-		$THREAD_STEP = $n; 
-	    }
-	    else{
-		print_usage; 
-	    }
-	}
-	elsif($1 eq 'n'){
-	    print STDERR "# NO OUTPUT FILE GENERATION\n";
-	    $NO_OUTPUT_FILE=1;
-	}
-	elsif($1 eq 'c'){
-	    if(defined($n = shift)){
-		print STDERR "Using config file $n\n";
-		do $n or die $!;
-		$config_loaded=1; 
-	    }
-	    else{
-		print_usage;
 	    }
 	}
 	else{
 	    print_usage; 
 	}
     }
-    elsif($arg =~ /([a-zA-Z0-9\-_]+)@([0-9]+(\.[0-9]+)?)/){
-	push @DATASET_NAME, $1;
-	push @DATASET_FILE, $DATA_DIR.$1.$DATASET_EXT;
-	push @DATASET_SUP, $2; 	
-    }    
-    elsif($arg =~ /([a-zA-Z0-9\-_]+)/){
-	push @runs, $1; 
-    }
     else{
-	print STDERR "Unexpected parameter \'$arg\'\n";
-	print_usage "./run.pl"; 
+	# parse the command to execute (so far a command can be
+	# anything)
+	if($arg =~ /(.*)/){
+	    $command = $arg
+	}
     }
 }
+
+
+foreach $var (keys %vars){
+    foreach $value (@{$vars{$var}}){
+	print "VAR $var : $value\n";
+    }
+    
+}
+print "PARSED COMMAND $command\n"; 
+
 
 #load default config file "run_config.pl" if no other config file has been loaded.
 if(not $config_loaded){
     do "./run_config.pl" or die $!;
     print STDERR "Loaded default config file run_config.pl\n";
 }
+
+
 
 # Premliminaries checks, hopefully those will detect erroneous parameters. 
 foreach $run (@runs){
