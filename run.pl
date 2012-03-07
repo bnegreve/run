@@ -227,8 +227,8 @@ sub run{
 
 
 sub print_usage{
-    print STDERR "Usage : $_[0] <dataset1\@support1> ... <algorith_1_name> ... [-t <min_thread>] [-T <max thread>] [-n]\n" ;
-	exit 0; 
+    print STDERR "Usage: $_[0] <dataset1\@support1> ... <algorith_1_name> ... [-t <min_thread>] [-T <max thread>] [-n]\n" ;
+    exit 0; 
 }
 
 
@@ -249,6 +249,11 @@ while ($arg = shift){
 	    # parse a var argument
 	    # creates a var entry with a list of values for this var
 	    if(defined($var = shift)){
+		if(not $var =~ /[a-zA-Z_][a-zA-Z_0-9]*/){
+		    print STDERR "Error: Unexpected variable name \'$var\'.\n";
+		    print_usage; 
+		}
+		
 		$vars{$var} = ();
 		while(defined ($n = shift @ARGV)){
 		    if($n =~ /^-/){
