@@ -241,28 +241,28 @@ $config_loaded = 0;
 @runs =(); 
 
 
-%vars; 
+%params; 
 
 while ($arg = shift){
-    if($arg =~ /\-([vc])/){
-	if($1 eq 'v'){
-	    # parse a var argument
-	    # creates a var entry with a list of values for this var
-	    if(defined($var = shift)){
-		if(not $var =~ /[a-zA-Z_][a-zA-Z_0-9]*/){
-		    print STDERR "Error: Unexpected variable name \'$var\'.\n";
+    if($arg =~ /\-([pc])/){
+	if($1 eq 'p'){
+	    # parse a param argument
+	    # creates a param entry with a list of values for this param
+	    if(defined($param = shift)){
+		if(not $param =~ /[a-zA-Z_][a-zA-Z_0-9]*/){
+		    print STDERR "Error: Unexpected parameter name \'$param\'.\n";
 		    print_usage; 
 		}
 		
-		$vars{$var} = ();
+		$params{$param} = ();
 		while(defined ($n = shift @ARGV)){
 		    if($n =~ /^-/){
 			unshift @ARGV, $n; 
 			last; 
 		    }
-		    push @{$vars{$var}}, $n; 
+		    push @{$params{$param}}, $n; 
 		}
-		print_usage if ($#{$vars{$var}} == 0); 
+		print_usage if ($#{$params{$param}} == 0); 
 	    }
 	    else{
 		print_usage; 
@@ -281,13 +281,14 @@ while ($arg = shift){
     }
 }
 
-
-foreach $var (keys %vars){
-    foreach $value (@{$vars{$var}}){
-	print "VAR $var : $value\n";
+foreach $param (keys %params){
+    foreach $value (@{$params{$param}}){
+	print "PARAM $param : $value\n";
     }
     
 }
+
+
 print "PARSED COMMAND $command\n"; 
 
 
