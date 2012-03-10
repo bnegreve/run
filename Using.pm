@@ -85,7 +85,7 @@ my $grammar = q {
             | term
 
   term: /[A-Z][A-Z_0-9]*/ 
-               {$return  = [Using::term_create_attr(@{$Using::params{$item[1]}})];}
+               {$return  = [Using::term_create_attr($item[1], $Using::params{$item[1]})];}
 
   error:/.*/ {print "Error\n";}
 };
@@ -113,20 +113,24 @@ sub parse{
 # Transforms an array of values into the attribute format. In other words it
 # turns a 1D array of values in a 2D array of values with one element per internal array
 sub term_create_attr{
-# argument is a ref to an array in which each element is a parameter possible value; 
-# return a 2-dim array.
-    my @output = ();
-    my $i = 0; 
-#    foreach $v(@{$_[0]}){
-    foreach $v(@_){
-	push @output, ();
-	push @{$output[$i]}, $v; 
-	$i++; 
+    die if @_ != 2; 
+    my ($term_name, $value_space)= @_;
+    my @output; 
+    push @output, [$term_name];
+
+    foreach $v(@{$value_space}){
+	push @output, [$v];
     }
     return @output; 
 }
 
 sub term_print{
+
+    foreach my $name (@{shift @_}){
+	print "$name, ";
+    }
+    print "\n"; 
+
     foreach $v1 (@_){
 	foreach $v2 (@$v1){
 	    print "( $v2 ), "; 
@@ -147,13 +151,20 @@ sub term_print{
 
 
 sub cart_product{
-    my @output; 
-    ($t1, $t2) = @_; 
-#    print "#CART PRODUCT ARRAY 1\n"; 
-#    term_print(@{$t1}); 
+    my @output;
+    my ($t1, $t2) = @_;
+    
 
-#    print "#CART PRODUCT ARRAY 2\n";
-#    term_print(@{$t2}); 
+   # print "#CART PRODUCT ARRAY 1\n"; 
+   # term_print(@{$t1}); 
+
+   # print "#CART PRODUCT ARRAY 2\n";
+   # term_print(@{$t2}); 
+
+
+    my $t1_name = @{shift @$t1}[0];
+    my $t2_name = @{shift @$t2}[0];
+    push @output, [$t1_name, $t2_name];
     
     foreach $v1 (@{$t1}){
 	foreach $v2 (@{$t2}){
@@ -172,7 +183,12 @@ sub cart_product{
 
 sub one_of_each{
     my @output; 
-    ($t1, $t2) = @_; 
+    my ($t1, $t2) = @_; 
+
+    my $t1_name = @{shift @$t1}[0];
+    my $t2_name = @{shift @$t2}[0];
+    push @output, [$t1_name, $t2_name];
+
     
    # print "#OOE PRODUCT ARRAY 1\n"; 
    # term_print(@{$t1}); 
