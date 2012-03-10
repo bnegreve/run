@@ -80,22 +80,10 @@ $SIG {ALRM} = sub {
 
 sub run_child{
     my $command = $_[0];
-    $process_name = $_[1]; 
-    my $nb_threads = $_[2];
-#    $child_pid = 0;  
-#    eval{
     
-    print STDERR " pn :$command\n";
-    if( $command =~ /.*?\/?([\w\-]+)\s/gx){
-	$process_name = $1;
-	print STDERR " pn :$process_name\n"
-    }
-    else {
-	print STDERR "Error : cannot parse process name \n"; 
-    }
+    $process_name = extract_process_name($command);
     
-
-    $child_pid = fork;
+    my $child_pid = fork;
     if (not $child_pid) {
 	not $NO_OUTPUT_FILE and print "exec : $command (timout : ".$TIMEOUT.")\n"; 
 	
@@ -251,6 +239,30 @@ parse_program_arguments(\@ARGV);
 check_progtotest_command_template(); 
 build_progtotest_command_lines();
 print_progtest_command_lines();
+run_command_lines(); 
+
+
+sub extract_process_name{
+    die if @_ != 1; 
+    my ($command) = @_;
+    my $process_name = "unknwown_process"; 
+
+    if( $command =~ /.*?\/?([\w\-]+)\s/gx){
+	$process_name = $1;
+    }
+    else {
+	print STDERR "Error : cannot parse process name \n"; 
+    }
+    return $process_name; 
+}
+
+sub run_command_lines{
+   foreach my $cl (@progtotest_command_lines){
+       print "BIN NAME : ".extract_process_name($cl)."\n"; 
+       run_child($cl);
+    }
+}
+
 
 sub print_progtest_command_lines{
     print "The following command lines will be executed:\n"; 
@@ -354,35 +366,35 @@ sub parse_program_arguments{
 
 
 
-print "PARSED COMMAND $command\n"; 
+# print "PARSED COMMAND $command\n"; 
 
 
-#load default config file "run_config.pl" if no other config file has been loaded.
-if(not $config_loaded){
-    do "./run_config.pl" or die $!;
-    print STDERR "Loaded default config file run_config.pl\n";
-}
+# #load default config file "run_config.pl" if no other config file has been loaded.
+# if(not $config_loaded){
+#     do "./run_config.pl" or die $!;
+#     print STDERR "Loaded default config file run_config.pl\n";
+# }
 
 
 
-# Premliminaries checks, hopefully those will detect erroneous parameters. 
-foreach $run (@runs){
-	if(exists($bin{$run})){
-	    $bin{$run}{run} = 1;
-	    (-x $bin{$run}{bin}) or die "Binary file \'$bin{$run}{bin}\' for \'$run\' does not exists or is not executable.\n";
-	}
-	else{
-	    print STDERR "\'$run\' is not available, check your config file!\ Aborting.\n";
-	    die; 
-	}
-}
+# # Premliminaries checks, hopefully those will detect erroneous parameters. 
+# foreach $run (@runs){
+# 	if(exists($bin{$run})){
+# 	    $bin{$run}{run} = 1;
+# 	    (-x $bin{$run}{bin}) or die "Binary file \'$bin{$run}{bin}\' for \'$run\' does not exists or is not executable.\n";
+# 	}
+# 	else{
+# 	    print STDERR "\'$run\' is not available, check your config file!\ Aborting.\n";
+# 	    die; 
+# 	}
+# }
 
 
-foreach $run (keys %bin){
-    %bin_info = %{$bin{$run}};
-    if($bin_info{run}){
-	run($run, $bin_info{bin}, $bin_info{command}, 
-	    $bin_info{time_func}, $bin_info{par});
-    }
-}
+# foreach $run (keys %bin){
+#     %bin_info = %{$bin{$run}};
+#     if($bin_info{run}){
+# 	run($run, $bin_info{bin}, $bin_info{command}, 
+# 	    $bin_info{time_func}, $bin_info{par});
+#     }
+# }
 print "END : ".date_string."\n";
