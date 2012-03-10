@@ -1,6 +1,7 @@
 #!/usr/bin/perl  
+#use strict; 
 
-$debug=0 ;
+my $debug=0 ;
 
 
 $MIN_NUM_THREADS=1;
@@ -32,7 +33,7 @@ sub md5_file{
 
     return Digest::MD5->new->addfile(*FILE)->hexdigest;
 }
- 
+
 sub date_string{
     use POSIX qw/strftime/;
     return strftime('%F %T',localtime); 
@@ -83,7 +84,7 @@ sub run_child{
     my $nb_threads = $_[2];
 #    $child_pid = 0;  
 #    eval{
-       
+    
     print STDERR " pn :$command\n";
     if( $command =~ /.*?\/?([\w\-]+)\s/gx){
 	$process_name = $1;
@@ -92,7 +93,7 @@ sub run_child{
     else {
 	print STDERR "Error : cannot parse process name \n"; 
     }
-   
+    
 
     $child_pid = fork;
     if (not $child_pid) {
@@ -112,7 +113,7 @@ sub run_child{
     $time = <TIME>; 
     chomp $time; 
     close TIME; 
-not $NO_OUTPUT_FILE and print "Run time : ".($time)."\n";
+    not $NO_OUTPUT_FILE and print "Run time : ".($time)."\n";
     
     return $time; 
 
@@ -160,22 +161,22 @@ sub run{
 	    print(OUTPUT "# RUNNING $name on ".$DATASET_NAME[$ds].'@'.$DATASET_SUP[$ds]."\n");
 	}
 	else{
-	open OUTPUT, '>', "$OUTPUTDIR/".$DATASET_NAME[$ds].'@'.$DATASET_SUP[$ds].'_'.$name.'.dat';
-	open MEM, '>', "$OUTPUTDIR/mem/".$DATASET_NAME[$ds].'@'.$DATASET_SUP[$ds].'_'.$name.'.dat';
-	##BUGGY
-	$current_time = 0; 
-	print OUTPUT "# Overall experiment start at $START_TIME on $hostname\n";
-	print OUTPUT "# Date : ".date_string()."\n";
-	print OUTPUT "# nb_threads in [$MIN_NUM_THREADS, $MAX_NUM_THREADS].\n";
-	print OUTPUT "# file $bin (MD5 : $md5).\n";
-	print OUTPUT "#\n# <nbthreads> <wallclock time> <usertime>\n";
+	    open OUTPUT, '>', "$OUTPUTDIR/".$DATASET_NAME[$ds].'@'.$DATASET_SUP[$ds].'_'.$name.'.dat';
+	    open MEM, '>', "$OUTPUTDIR/mem/".$DATASET_NAME[$ds].'@'.$DATASET_SUP[$ds].'_'.$name.'.dat';
+	    ##BUGGY
+	    $current_time = 0; 
+	    print OUTPUT "# Overall experiment start at $START_TIME on $hostname\n";
+	    print OUTPUT "# Date : ".date_string()."\n";
+	    print OUTPUT "# nb_threads in [$MIN_NUM_THREADS, $MAX_NUM_THREADS].\n";
+	    print OUTPUT "# file $bin (MD5 : $md5).\n";
+	    print OUTPUT "#\n# <nbthreads> <wallclock time> <usertime>\n";
 
-	print MEM "# Overall experiment start at $START_TIME on $hostname\n";
-	print MEM "# Date : ".date_string()."\n";
-	print MEM "# nb_threads in [$MIN_NUM_THREADS, $MAX_NUM_THREADS].\n";
-	print MEM "# file $bin (MD5 : $md5).\n";
-	print MEM "#\n# <cylce id($CYCLE_LEN)> <mem usage (kiB)>\n";
-	
+	    print MEM "# Overall experiment start at $START_TIME on $hostname\n";
+	    print MEM "# Date : ".date_string()."\n";
+	    print MEM "# nb_threads in [$MIN_NUM_THREADS, $MAX_NUM_THREADS].\n";
+	    print MEM "# file $bin (MD5 : $md5).\n";
+	    print MEM "#\n# <cylce id($CYCLE_LEN)> <mem usage (kiB)>\n";
+	    
 
 	}
 
@@ -234,59 +235,97 @@ sub print_usage{
 
 
 
-use Getopt::Std;
 my %opts;
 
 $config_loaded = 0; 
 @runs =(); 
 
 
-%params; 
+my %params;
+my $progtotest_command_template; 
+my @progtotest_command_lines; 
 
-while ($arg = shift){
-    if($arg =~ /\-([pc])/){
-	if($1 eq 'p'){
-	    # parse a param argument
-	    # creates a param entry with a list of values for this param
-	    if(defined($param = shift)){
-		if(not $param =~ /[a-zA-Z_][a-zA-Z_0-9]*/){
-		    print STDERR "Error: Unexpected parameter name \'$param\'.\n";
+parse_program_arguments(\@ARGV);
+check_progtotest_command_template(); 
+#build_progtotest_command_lines();
+
+foreach my $param (keys %params){
+    
+    foreach my $value (@{$params{$param}}){
+	print "PARAM $param : $value\n";
+	
+	
+    }
+}
+
+sub check_progtotest_command_template{
+    foreach my $param (keys %params){
+	if($progtotest_command_template =~ /\.$param\./){
+	    print "Found param \'$param\'$ in command line template.\n"; 
+	}
+	else{
+	    print STDERR "Warning: param \'$param$\' not found in command line template.\n"; 
+	}
+    }
+}
+
+
+
+sub parse_program_arguments{
+    $#_ == 0 or die "Unexpected argument number.\n"; 
+    my @argv = @{$_[0]}; 
+
+    while (my $arg = shift @argv){
+	if($arg =~ /\-([pu])/){
+	    ###################
+	    #### parameter ####
+	    ###################
+	    if($1 eq 'p'){
+		# parse a param argument
+		# creates a param entry with a list of values for this param
+		if(defined(my $param = shift @argv)){
+		    if(not $param =~ /[a-zA-Z_][a-zA-Z_0-9]*/){
+			print STDERR "Error: Unexpected parameter name \'$param\'.\n";
+			print_usage; 
+		    }
+		    
+		    $params{$param} = ();
+		    while(defined ($n = shift @argv)){
+			if($n =~ /^-/){
+			    unshift @argv, $n; 
+			    last; 
+			}
+			push @{$params{$param}}, $n; 
+		    }
+		    print_usage if ($#{$params{$param}} == 0); 
+		}
+		else{
 		    print_usage; 
 		}
-		
-		$params{$param} = ();
-		while(defined ($n = shift @ARGV)){
-		    if($n =~ /^-/){
-			unshift @ARGV, $n; 
-			last; 
-		    }
-		    push @{$params{$param}}, $n; 
+	    }
+	    ###############
+	    #### using ####
+	    ###############
+	    elsif($1 eq 'u'){
+		my @uses = split(/:/, $arg){
+		    
 		}
-		print_usage if ($#{$params{$param}} == 0); 
 	    }
 	    else{
 		print_usage; 
 	    }
 	}
 	else{
-	    print_usage; 
-	}
-    }
-    else{
-	# parse the command to execute (so far a command can be
-	# anything)
-	if($arg =~ /(.*)/){
-	    $command = $arg
+	    # parse the command to execute (so far a command can be
+	    # anything)
+	    if($arg =~ /(.*)/){
+		$progtotest_command_template = $arg
+	    }
 	}
     }
 }
 
-foreach $param (keys %params){
-    foreach $value (@{$params{$param}}){
-	print "PARAM $param : $value\n";
-    }
-    
-}
+
 
 
 print "PARSED COMMAND $command\n"; 
@@ -311,6 +350,8 @@ foreach $run (@runs){
 	    die; 
 	}
 }
+
+
 
 
 foreach $run (keys %bin){
