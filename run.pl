@@ -4,6 +4,7 @@
 my $debug=0 ;
 
 
+
 $MIN_NUM_THREADS=1;
 $MAX_NUM_THREADS=2;
 $THREAD_STEP=1;
@@ -13,9 +14,18 @@ $NO_OUTPUT_FILE = 0;
 
 $DATA_DIR = 'DATA/';
 $DATASET_EXT = '.dat';
-$TIMEOUT=150; #In number of cycles
-$CYCLE_LEN=10; #in sec.
-$MAX_MEM_USAGE=60000000;
+
+my $timeout = -1; #In number of cycles, -1 is unlimited
+my $max_mem_usage = -1; #In kiB -1 is unlimited
+my $total_memory; 
+
+
+my $child_pid=-1; 
+my $current_time = 0; 
+my $current_process_name; 
+
+$CYCLE_LEN=1; #in sec. must be 60
+
 
 
 
@@ -41,16 +51,29 @@ sub date_string{
 $START_TIME = date_string;
 
 
-
+# Warning: may die; 
+sub get_total_memory{
+    die if @_ != 0; 
+    
+    open MEMINFO, "/proc/meminfo" or die $!; 
+    while (my $line = <MEMINFO>){
+	if($line =~ /MemTotal.*?([0-9]+).*/){
+	    close MEMINFO; 
+	    return $1; 
+	}
+    }
+    die "Error: Cannot find out total memory.\n";
+}
 
 sub check_memory_usage{
-    my $name = $_[0];
-    open INPUT, 'ps -eo comm,rss | awk \'/'.$name.'/ && !/awk/ {print $2}\'|'; 
+    die if @_ != 0;
+    return 0 if($max_mem_usage == -1); 
+    open INPUT, 'ps -eo comm,rss | awk \'/'.$current_process_name.'/ && !/awk/ {print $2}\'|'; 
     my $mem = <INPUT>;
     close INPUT;
     print MEM "$current_time $mem"; 
-    if($mem >= $MAX_MEM_USAGE){
-	print STDERR "Process $name uses more than $MAX_MEM_USAGE kiB : $mem\n"; 
+    if($mem >= $max_mem_usage){
+	print STDERR "Process $current_process_name uses more than $max_mem_usage kiB : $mem\n"; 
 	return 1; 
     }
     else {
@@ -58,34 +81,26 @@ sub check_memory_usage{
     }
 }
 
-
-$child_pid=-1; 
-
-$current_time = 0; 
-$SIG {ALRM} = sub {
-    #
-    $current_time++; 
-    if(check_memory_usage($process_name) or $current_time >= $TIMEOUT){
-	print STDERR "killing $process_name\n"; 
-	do{
-	    system("killall -9 $process_name\n");  
-	    sleep(1); 
-	}
-	while($_); 
+sub check_timeout{
+    die if @_ != 0; 
+    return 0 if($timeout == -1);
+    
+    if($current_time >= $timeout){
+	print STDERR "Process $current_process_name have been running for longer that $timeout\n"; 
+	return 1; 
     }
-    else {
-	alarm $CYCLE_LEN;
-    }
-};
+    return 0; 
+}
 
 sub run_child{
+    die if (@_ != 1); 
     my $command = $_[0];
     
-    $process_name = extract_process_name($command);
-    
+    $current_process_name = extract_process_name($command);
+    $current_time = 0; 
     my $child_pid = fork;
     if (not $child_pid) {
-	not $NO_OUTPUT_FILE and print "exec : $command (timout : ".$TIMEOUT.")\n"; 
+	not $NO_OUTPUT_FILE and print "exec : $command (timout : ".$timeout.")\n"; 
 	
 	exec "/usr/bin/time -o time.dat -f \"%e\" $command 2>&1 > out_tmp " or die "command failed\n"; 
     }
@@ -111,8 +126,8 @@ sub run_child{
 # 	exec "$command 2>&1 > out_tmp" or die; 
 # 	die; 
 #     }
-#     $SIG{ALRM} = sub { print "KILLING $child_pid\n"; kill 15, $child_pid or kill 9, $child_pid or print  "WARNING could not kill child process $child_pid.\n"; print STDOUT "killed $child_pid after $TIMEOUT s\n";   };
-#     alarm($TIMEOUT);
+#     $SIG{ALRM} = sub { print "KILLING $child_pid\n"; kill 15, $child_pid or kill 9, $child_pid or print  "WARNING could not kill child process $child_pid.\n"; print STDOUT "killed $child_pid after $timeout s\n";   };
+#     alarm($timeout);
 #     print "CREATED CHILD $child_pid\n";
 
 #     waitpid($child_pid,0) or die "Couldnot wait child_n";
@@ -235,12 +250,31 @@ my @parameters_value_space;
 my @parameters_name; 
 my @progtotest_command_lines; 
 
+init(); 
 parse_program_arguments(\@ARGV);
 check_progtotest_command_template(); 
 build_progtotest_command_lines();
-print_progtest_command_lines();
+print_info(); 
 run_command_lines(); 
 
+
+sub print_info(){
+    die if @_ != 0;
+
+
+    if ($timeout == -1){ print "Timeout:\tUnlimited.\n"; }
+    else { print "Timeout:\t$timeout (min)\n";}
+
+    print "Total memory:\t".($total_memory/1024)." MiB\n"; 
+    if ($max_mem_usage == -1){ print "Max memory usage:\tUnlimited.\n"; }
+    else { print "Max memory usage:\t".($max_mem_usage/1024)." MiB\n";}
+    
+    print "The following command lines will be executed:\n"; 
+    print_progtest_command_lines();
+
+
+
+}
 
 sub extract_process_name{
     die if @_ != 1; 
@@ -258,14 +292,13 @@ sub extract_process_name{
 
 sub run_command_lines{
    foreach my $cl (@progtotest_command_lines){
-       print "BIN NAME : ".extract_process_name($cl)."\n"; 
        run_child($cl);
     }
 }
 
 
+
 sub print_progtest_command_lines{
-    print "The following command lines will be executed:\n"; 
     foreach my $cl (@progtotest_command_lines){
 	print ">>$cl<<\n"; 
     }
@@ -287,8 +320,8 @@ sub build_progtotest_command_lines{
 
 sub check_progtotest_command_template{
     foreach my $param (keys %params){
-	if($progtotest_command_template =~ /\.$param\./){
-	    print "Found param \'$param\'$ in command line template.\n"; 
+	if($progtotest_command_template =~ /$param/){
+#	    print "Found param \'$param\'$ in command line template.\n"; 
 	}
 	else{
 	    print STDERR "Warning: param \'$param$\' not found in command line template.\n"; 
@@ -298,15 +331,40 @@ sub check_progtotest_command_template{
 
 
 
+sub init{
+    die if @_ != 0; 
+
+# memory 
+    $total_memory = get_total_memory(); 
+
+# initialize timer for the control loop
+    $SIG {ALRM} = sub {
+	$current_time++; 
+	if(check_memory_usage or check_timeout){
+	    print STDERR "killing $current_process_name\n"; 
+	    do{
+		system("killall -9 $current_process_name\n");  
+		sleep(1); 
+	    }
+	    while($_); 
+	}
+	else {
+	    alarm $CYCLE_LEN;
+	}
+    };
+
+}
+
 sub parse_program_arguments{
     $#_ == 0 or die "Unexpected argument number.\n"; 
     my @argv = @{$_[0]}; 
 
     while (my $arg = shift @argv){
-	if($arg =~ /\-([pu])/){
-	    ###################
-	    #### parameter ####
-	    ###################
+	if($arg =~ /\-([putm])/){
+
+	    ####################
+	    #### parameters ####
+	    ####################
 	    if($1 eq 'p'){
 		# parse a param argument
 		# creates a param entry with a list of values for this param
@@ -330,6 +388,7 @@ sub parse_program_arguments{
 		    print_usage; 
 		}
 	    }
+
 	    ###############
 	    #### using ####
 	    ###############
@@ -342,13 +401,37 @@ sub parse_program_arguments{
 		    }
 
 		    @parameters_value_space = Using::parse($param);
-		    print "Parameters Value Space\n"; 
-		    Using::term_print(@parameters_value_space); 
 		}
 		else{
 		    print_usage;
 		}
 	    }
+
+	    #################
+	    #### timeout ####
+	    #################	    
+	    elsif($1 eq 't'){
+		if(defined(my $param = shift @argv)){
+		    $timeout = $param; 
+		}
+		else{
+		    print_usage; 
+		}
+	    }
+
+	    ######################
+	    #### memory limit ####
+	    ######################	    
+	    elsif($1 eq 'm'){
+		if(defined(my $param = shift @argv)){
+		    $max_mem_usage = $param * $total_memory / 100; 
+		}
+		else{
+		    print_usage; 
+		}
+	    }
+
+
 	    else{
 		print_usage; 
 	    }
@@ -363,38 +446,4 @@ sub parse_program_arguments{
     }
 }
 
-
-
-
-# print "PARSED COMMAND $command\n"; 
-
-
-# #load default config file "run_config.pl" if no other config file has been loaded.
-# if(not $config_loaded){
-#     do "./run_config.pl" or die $!;
-#     print STDERR "Loaded default config file run_config.pl\n";
-# }
-
-
-
-# # Premliminaries checks, hopefully those will detect erroneous parameters. 
-# foreach $run (@runs){
-# 	if(exists($bin{$run})){
-# 	    $bin{$run}{run} = 1;
-# 	    (-x $bin{$run}{bin}) or die "Binary file \'$bin{$run}{bin}\' for \'$run\' does not exists or is not executable.\n";
-# 	}
-# 	else{
-# 	    print STDERR "\'$run\' is not available, check your config file!\ Aborting.\n";
-# 	    die; 
-# 	}
-# }
-
-
-# foreach $run (keys %bin){
-#     %bin_info = %{$bin{$run}};
-#     if($bin_info{run}){
-# 	run($run, $bin_info{bin}, $bin_info{command}, 
-# 	    $bin_info{time_func}, $bin_info{par});
-#     }
-# }
 print "END : ".date_string."\n";
