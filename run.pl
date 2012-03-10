@@ -242,20 +242,35 @@ $config_loaded = 0;
 
 
 my %params;
-my $progtotest_command_template; 
+my $progtotest_command_template;
+my @parameters_value_space; 
+my @parameters_name; 
 my @progtotest_command_lines; 
 
 parse_program_arguments(\@ARGV);
 check_progtotest_command_template(); 
-#build_progtotest_command_lines();
+build_progtotest_command_lines();
+print_progtest_command_lines();
 
-foreach my $param (keys %params){
-    
-    foreach my $value (@{$params{$param}}){
-	print "PARAM $param : $value\n";
-	
-	
+sub print_progtest_command_lines{
+    print "The following command lines will be executed:\n"; 
+    foreach my $cl (@progtotest_command_lines){
+	print ">>$cl<<\n"; 
     }
+}
+
+sub build_progtotest_command_lines{
+    die if @_ != 0; 
+    
+    @parameter_names =  @{shift @parameters_value_space};
+    foreach my $tuple (@parameters_value_space){
+	my $command_line = $progtotest_command_template; 
+	for my $i (0 .. $#$tuple){
+	    die unless ($command_line =~ s/$parameter_names[$i]/@{$tuple}[$i]/)
+    	}
+	push @progtotest_command_lines, $command_line;
+    }
+
 }
 
 sub check_progtotest_command_template{
@@ -307,8 +322,19 @@ sub parse_program_arguments{
 	    #### using ####
 	    ###############
 	    elsif($1 eq 'u'){
-		my @uses = split(/:/, $arg){
-		    
+		if(defined(my $param = shift @argv)){
+		    require Using;
+		    Using::init_parser(); 
+		    foreach my $param_name (keys %params){
+			Using::add_parameter_value_space($param_name, $params{$param_name}); 
+		    }
+
+		    @parameters_value_space = Using::parse($param);
+		    print "Parameters Value Space\n"; 
+		    Using::term_print(@parameters_value_space); 
+		}
+		else{
+		    print_usage;
 		}
 	    }
 	    else{
@@ -350,8 +376,6 @@ foreach $run (@runs){
 	    die; 
 	}
 }
-
-
 
 
 foreach $run (keys %bin){
