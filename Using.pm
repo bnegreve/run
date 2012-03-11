@@ -155,16 +155,16 @@ sub cart_product{
     my ($t1, $t2) = @_;
     
 
-   # print "#CART PRODUCT ARRAY 1\n"; 
-   # term_print(@{$t1}); 
+   print "#CART PRODUCT ARRAY 1\n"; 
+   term_print(@{$t1}); 
 
-   # print "#CART PRODUCT ARRAY 2\n";
-   # term_print(@{$t2}); 
+   print "#CART PRODUCT ARRAY 2\n";
+   term_print(@{$t2}); 
 
 
-    my $t1_name = @{shift @$t1}[0];
-    my $t2_name = @{shift @$t2}[0];
-    push @output, [$t1_name, $t2_name];
+    my @t1_names = @{shift @$t1};
+    my @t2_names = @{shift @$t2};
+    push @output, [@t1_names, @t2_names];
     
     foreach $v1 (@{$t1}){
 	foreach $v2 (@{$t2}){
@@ -185,9 +185,10 @@ sub one_of_each{
     my @output; 
     my ($t1, $t2) = @_; 
 
-    my $t1_name = @{shift @$t1}[0];
-    my $t2_name = @{shift @$t2}[0];
-    push @output, [$t1_name, $t2_name];
+
+    my @t1_names = @{shift @$t1};
+    my @t2_names = @{shift @$t2};
+    push @output, [@t1_names, @t2_names];
 
     
    # print "#OOE PRODUCT ARRAY 1\n"; 
