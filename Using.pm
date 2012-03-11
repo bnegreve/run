@@ -64,11 +64,12 @@ package Using; #Using expression parser
 # term_print(parse("THREAD_NUMx(DATASET=DATASET_VALUE)")); 
 
 
-# ## usage example 2
-# init_parser(); 
-# add_parameter_value_space('D', [d1,d2]); 
-# term_print(parse("DxD)")); 
-# term_print(parse("D=D)")); 
+## usage example 2
+init_parser(); 
+add_parameter_value_space('D', [d1,d2]); 
+#term_print(term_create_attr('D', [d1,d2]));
+#term_print(parse("DfxDc)")); 
+term_print(parse("(Df=Df)c")); 
 
 ## globals ##
 use Parse::RecDescent;
@@ -87,9 +88,12 @@ my $grammar = q {
                {$return = {Using::cart_product($item[1], $item[3])};}
            | brack_expr
  
-  brack_expr: '(' expression ')'
-               {$return = $item[2];}
-            | term
+  brack_expr: '(' expression ')' decor
+               {Using::attr_set_decors_from_value($item[2], $item[4]); $return = $item[2];}
+            | term decor
+               {Using::attr_set_decor_array($item[1], [$item[2]]); $return = $item[1];}
+
+  decor: /[clf]?/
 
   term: /[A-Z][A-Z_0-9]*/ 
                {$return  = {Using::term_create_attr($item[1], $Using::params{$item[1]})};}
@@ -141,10 +145,31 @@ sub attr_print_term_names{
     my ($attr_ref) = @_;
     
     foreach my $name (@{$attr_ref->{names}}){
-    	print "$name, "; 
+    	print "$name,\t"; 
+    }
+    print "\n";
+    
+    foreach my $decor (@{$attr_ref->{decors}}){
+    	print "$decor,\t"; 
     }
     print "\n"; 
 }
+
+
+sub attr_set_decor_array{
+    die if @_ != 2;
+    my ($attr_ref, $decor_array_ref) = @_;
+    $attr_ref->{decors} = $decor_array_ref; 
+}
+
+sub attr_set_decors_from_value{
+    die if @_ != 2;
+    my ($attr_ref, $decor) = @_;
+    for my $i (0 .. $#{$attr_ref->{decors}}){
+	@{$attr_ref->{decors}}[$i] = $decor;
+    }
+}
+
 
 sub term_print{
 #    die if @_ == 0;
@@ -153,7 +178,7 @@ sub term_print{
 
     foreach $v1 (@{$attr{values}}){
 	foreach $v2 (@$v1){
-	    print "( $v2 ), "; 
+	    print "$v2,\t"; 
 	}
 	print "\n"; 
     }
@@ -181,8 +206,9 @@ sub cart_product{
     # print "#CART PRODUCT ARRAY 2\n";
     # term_print(%$t2_ref); 
 
-    # deals with term names
+    # deals with term names & decors
     $attr{names} = [@{$t1_ref->{names}}, @{$t2_ref->{names}}];
+    $attr{decors} = [@{$t1_ref->{decors}}, @{$t2_ref->{decors}}];
     
     # deals with values
     foreach $v1 (@{$t1_ref->{values}}){
@@ -212,8 +238,9 @@ sub one_of_each{
 
     ($#{$t1_ref->{values}} == $#{$t2_ref->{values}}) or die "\'=\' opertion between parameters with different number of values\n";
 
-    # deals with term names
+    # deals with term names & decors
     $attr{names} = [@{$t1_ref->{names}}, @{$t2_ref->{names}}];
+    $attr{decors} = [@{$t1_ref->{decors}}, @{$t2_ref->{decors}}];
     
     # deals with values
     $t1_values_ref = $t1_ref->{values}; 
