@@ -56,12 +56,19 @@ package Using; #Using expression parser
 # eg. ( (a1), (a2) ) x ( (b1), (b2) ) -> ( (a1, b1), ... , (a2, b2) )
 
 
-## usage example 
+# ## usage example 
 # init_parser(); 
 # add_parameter_value_space('DATASET', [d1,d2]); 
 # add_parameter_value_space('DATASET_VALUE', [10,20]); 
 # add_parameter_value_space('THREAD_NUM', [1,2,4]); 
 # term_print(parse("THREAD_NUMx(DATASET=DATASET_VALUE)")); 
+
+
+# ## usage example 2
+# init_parser(); 
+# add_parameter_value_space('D', [d1,d2]); 
+# term_print(parse("DxD)")); 
+# term_print(parse("D=D)")); 
 
 ## globals ##
 use Parse::RecDescent;
@@ -73,11 +80,11 @@ sub init_parser{
 my $grammar = q {
   start : expression {$return = $item[1];}|error
   expression: and_expr '=' expression
-               {$return = [Using::one_of_each($item[1], $item[3])];}
+               {$return = {Using::one_of_each($item[1], $item[3])};}
             | and_expr
  
    and_expr:   brack_expr 'x' and_expr 
-               {$return =[Using::cart_product($item[1], $item[3])];}
+               {$return = {Using::cart_product($item[1], $item[3])};}
            | brack_expr
  
   brack_expr: '(' expression ')'
@@ -85,7 +92,7 @@ my $grammar = q {
             | term
 
   term: /[A-Z][A-Z_0-9]*/ 
-               {$return  = [Using::term_create_attr($item[1], $Using::params{$item[1]})];}
+               {$return  = {Using::term_create_attr($item[1], $Using::params{$item[1]})};}
 
   error:/.*/ {print "Error\n";}
 };
@@ -106,7 +113,7 @@ sub add_parameter_value_space{
 sub parse{
     die if @_ != 1; 
     my ($expr) = @_; 
-    return @{$using_expression_parser->start($expr)} or print "bad input.\n"; 
+    return %{$using_expression_parser->start($expr)} or print "bad input.\n"; 
 }
 
 
@@ -115,23 +122,36 @@ sub parse{
 sub term_create_attr{
     die if @_ != 2; 
     my ($term_name, $value_space)= @_;
-    my @output; 
-    push @output, [$term_name];
+    
+    my %attr; 
+    $attr{names} = [$term_name];
+    
+    my @values; 
 
     foreach $v(@{$value_space}){
-	push @output, [$v];
+	push @values, [$v];
     }
-    return @output; 
+
+    $attr{values} = \@values; 
+    return %attr; 
+}
+
+sub attr_print_term_names{
+    die if @_ != 1;
+    my ($attr_ref) = @_;
+    
+    foreach my $name (@{$attr_ref->{names}}){
+    	print "$name, "; 
+    }
+    print "\n"; 
 }
 
 sub term_print{
+#    die if @_ == 0;
+    my %attr = @_;
+    attr_print_term_names(\%attr);
 
-    foreach my $name (@{shift @_}){
-	print "$name, ";
-    }
-    print "\n"; 
-
-    foreach $v1 (@_){
+    foreach $v1 (@{$attr{values}}){
 	foreach $v2 (@$v1){
 	    print "( $v2 ), "; 
 	}
@@ -151,45 +171,38 @@ sub term_print{
 
 
 sub cart_product{
-    my @output;
-    my ($t1, $t2) = @_;
+    my %attr;
+    my ($t1_ref, $t2_ref) = @_;
     
 
-   print "#CART PRODUCT ARRAY 1\n"; 
-   term_print(@{$t1}); 
+    # print "#CART PRODUCT ARRAY 1\n"; 
+    # term_print(%$t1_ref); 
 
-   print "#CART PRODUCT ARRAY 2\n";
-   term_print(@{$t2}); 
+    # print "#CART PRODUCT ARRAY 2\n";
+    # term_print(%$t2_ref); 
 
-
-    my @t1_names = @{shift @$t1};
-    my @t2_names = @{shift @$t2};
-    push @output, [@t1_names, @t2_names];
+    # deals with term names
+    $attr{names} = [@{$t1_ref->{names}}, @{$t2_ref->{names}}];
     
-    foreach $v1 (@{$t1}){
-	foreach $v2 (@{$t2}){
-	    my @tmp  = (@$v1, @$v2);
-	    push @output, \@tmp; 
-	}
+    # deals with values
+    foreach $v1 (@{$t1_ref->{values}}){
+    	foreach $v2 (@{$t2_ref->{values}}){
+    	    push @{$attr{values}}, [@$v1, @$v2];
+    	}
     }
-    
-#    print "#CART PRODUCT ARRAY OUTPUT\n"; 
-#    term_print(@output); 
 
-   return @output; 
+
+    # print "#CART PRODUCT OUTPUT\n";
+    # term_print(%attr); 
+
+   return %attr; 
 }
 
 
 
 sub one_of_each{
-    my @output; 
-    my ($t1, $t2) = @_; 
-
-
-    my @t1_names = @{shift @$t1};
-    my @t2_names = @{shift @$t2};
-    push @output, [@t1_names, @t2_names];
-
+    my %attr;
+    my ($t1_ref, $t2_ref) = @_; 
     
    # print "#OOE PRODUCT ARRAY 1\n"; 
    # term_print(@{$t1}); 
@@ -197,18 +210,23 @@ sub one_of_each{
    # print "#OOE PRODUCT ARRAY 2\n";
    # term_print(@{$t2}); 
 
-    ($#$t1 == $#$t2) or die "\'=\' opertion between parameters with different number of values\n";
+    ($#{$t1_ref->{values}} == $#{$t2_ref->{values}}) or die "\'=\' opertion between parameters with different number of values\n";
 
-    for $i (0..$#$t1){
-	push @output,  @{$t1}[$i]; 
-	push @{$output[-1]}, @{@$t2[$i]}; 
+    # deals with term names
+    $attr{names} = [@{$t1_ref->{names}}, @{$t2_ref->{names}}];
+    
+    # deals with values
+    $t1_values_ref = $t1_ref->{values}; 
+    $t2_values_ref = $t2_ref->{values}; 
+    for $i (0..$#{$t1_values_ref}){
+	push @{$attr{values}}, [@{@{$t1_values_ref}[$i]}, @{@$t2_values_ref[$i]}];
     }
 
    # print "#OOE OUTPUT1\n"; 
    # term_print(@output); 
     
     
-   return @output; 
+   return %attr; 
 }
 
 
