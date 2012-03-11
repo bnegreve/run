@@ -307,8 +307,13 @@ sub print_progtest_command_lines{
 sub build_progtotest_command_lines{
     die if @_ != 0; 
     
-    @parameter_names =  @{shift @parameters_value_space};
-    foreach my $tuple (@parameters_value_space){
+    @parameter_names =  @{$parameters_value_space{names}};
+
+    foreach $p (@parameter_names){
+	
+	print @parameter_names." parameter names $p\n"; 
+    }
+    foreach my $tuple (@{$parameters_value_space{values}}){
 	my $command_line = $progtotest_command_template; 
 	for my $i (0 .. $#$tuple){
 	    die unless ($command_line =~ s/$parameter_names[$i]/@{$tuple}[$i]/)
@@ -400,7 +405,7 @@ sub parse_program_arguments{
 			Using::add_parameter_value_space($param_name, $params{$param_name}); 
 		    }
 
-		    @parameters_value_space = Using::parse($param);
+		    %parameters_value_space = Using::parse($param);
 		}
 		else{
 		    print_usage;
