@@ -326,14 +326,19 @@ sub start_file{
 
 
 sub end_file{
-    shift_line();
     print OUTPUT "\n####\n"; 
 #    close OUTPUT; 
 }
 
 
-sub shift_line{
+sub start_line{
+    die if @_ != 1; 
+    my ($line_head) = @_; 
+    print OUTPUT $line_head;
     shift_column(); 
+}
+
+sub end_line{
     print OUTPUT "\n"; 
 }
 
@@ -362,6 +367,12 @@ sub create_dat_filename{
     return $filename.'.dat'; 
 }
 
+sub get_parameter_value{
+    die if @_ != 2; 
+    my ($name, $index) = @_; 
+    return $parameter_values{$name}->[$index];
+}
+
 sub run_command_lines{
     die if @_ != 0;
     my @parameters_names = @{$parameters_value_space{names}}; 
@@ -373,35 +384,26 @@ sub run_command_lines{
 
     my $tuple;
     foreach  $tuple (sort_tuples @{$parameters_value_space{values}}){
-	 if ($previous_tuple == -1) {
+	# loop over the parameter values flc order
+	foreach my $v (@parameter_index_order){
+	    if(not $tuple->[$v] eq $previous_tuple->[$v]){
+		if($parameters_decors[$v] eq 'f'){
+		    # f decored parameter takes a new value => create a new file
+		    end_file() if ($previous_tuple != -1);
+		    start_file(create_dat_filename(@$tuple));
+		}
 
-	     start_file(create_dat_filename(@$tuple)); 
-	 }
-	 else{
-	     # loop over the parameter values flc order
-	     foreach my $v (@parameter_index_order){
-		 if(not $tuple->[$v] eq $previous_tuple->[$v]){
-
-		     if($parameters_decors[$v] eq 'f'){
-		     # f decored parameter takes a new value => create a new file
-			 end_file();
-			 start_file(create_dat_filename(@$tuple)); 
-			 last; 
-		     }
-
-		     elsif($parameters_decors[$v] eq 'l'){
-		     # l decored parameter takes a new value => create a new line
-			 shift_line();
-			 last; 
-		     }
-		     else{
-			 # c decored parameter takes a new value => create a new column
-			 shift_column();
-			 last; 
-		     }
-		 }
-	     }
-	 }
+		elsif($parameters_decors[$v] eq 'l'){
+		    # l decored parameter takes a new value => create a new line
+		    end_line() if ($previous_tuple != -1);
+		    start_line(get_parameter_value($parameters_names[$v], $tuple->[$v]));
+		}
+		else{
+		    # c decored parameter takes a new value => create a new column
+		    shift_column();
+		}
+	    }
+	}
 
 	 my $cl =  build_progtotest_command_line($progtotest_command_template, @{$tuple}); 
 	 print OUTPUT run_child($cl);
@@ -409,7 +411,7 @@ sub run_command_lines{
 	 $previous_tuple = $tuple; 
     }
 
-    unless ($previous_tuple == -1){end_file(); }
+#    unless ($previous_tuple == -1){shift_column(); end_line(); end_file(); }
 
 
     
