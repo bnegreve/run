@@ -48,6 +48,11 @@ sub date_string{
     use POSIX qw/strftime/;
     return strftime('%F %T',localtime); 
 }
+
+sub date_string_ymd{
+    use POSIX qw/strftime/;
+    return strftime('%F',localtime); 
+}
 $START_TIME = date_string;
 
 
@@ -100,7 +105,7 @@ sub run_child{
     $current_time = 0; 
     my $child_pid = fork;
     if (not $child_pid) {
-	not $NO_OUTPUT_FILE and print "exec : $command (timout : ".$timeout.")\n"; 
+	not $NO_OUTPUT_FILE and print "exec : $command (timeout: ".$timeout.")\n"; 
 	
 	exec "/usr/bin/time -o time.dat -f \"%e\" $command 2>&1 > out_tmp " or die "command failed\n"; 
     }
@@ -114,36 +119,12 @@ sub run_child{
     my $time;
     open TIME, "time.dat" or die "cannot open time file\n";
     $time = <TIME>; 
-    chomp $time; 
+    chop $time; 
     close TIME; 
     not $NO_OUTPUT_FILE and print "Run time : ".($time)."\n";
     
     return $time; 
-
-#     $child_pid = fork();
-#     if($child_pid == 0){
-# 	print STDOUT "running $command in process\n"; 
-# 	exec "$command 2>&1 > out_tmp" or die; 
-# 	die; 
-#     }
-#     $SIG{ALRM} = sub { print "KILLING $child_pid\n"; kill 15, $child_pid or kill 9, $child_pid or print  "WARNING could not kill child process $child_pid.\n"; print STDOUT "killed $child_pid after $timeout s\n";   };
-#     alarm($timeout);
-#     print "CREATED CHILD $child_pid\n";
-
-#     waitpid($child_pid,0) or die "Couldnot wait child_n";
-#     alarm(0);
-#     print STDOUT "$child_pid done !\n"; 
-
-#    }
-
-    
 }
-
-#if($plot_data){
-# plot_data; 
-# }
-
-#for dci 
 
 $OUTPUTDIR="times/dat/";
 system("mkdir -p $OUTPUTDIR"); 
@@ -249,6 +230,7 @@ my $progtotest_command_template;
 my @parameters_value_space; 
 my @parameters_name; 
 my @progtotest_command_lines; 
+my @parameter_index_order; 
 
 init(); 
 parse_program_arguments(\@ARGV);
@@ -258,9 +240,25 @@ print_info();
 run_command_lines(); 
 
 
+
+sub print_file_header{
+    print OUTPUT "# Overall experiment start at $START_TIME on $hostname\n";
+    print OUTPUT "# Date : ".date_string()."\n";
+    print OUTPUT "# nb_threads in [$MIN_NUM_THREADS, $MAX_NUM_THREADS].\n";
+    print OUTPUT "# file $bin (MD5 : $md5).\n";
+    print OUTPUT "#\n# <nbthreads> <wallclock time> <usertime>\n";
+
+    # print MEM "# Overall experiment start at $START_TIME on $hostname\n";
+    # print MEM "# Date : ".date_string()."\n";
+    # print MEM "# nb_threads in [$MIN_NUM_THREADS, $MAX_NUM_THREADS].\n";
+    # print MEM "# file $bin (MD5 : $md5).\n";
+    # print MEM "#\n# <cylce id($CYCLE_LEN)> <mem usage (kiB)>\n";
+}	    
+
+
+# Print system info and so on. 
 sub print_info(){
     die if @_ != 0;
-
 
     if ($timeout == -1){ print "Timeout:\tUnlimited.\n"; }
     else { print "Timeout:\t$timeout (min)\n";}
@@ -271,11 +269,9 @@ sub print_info(){
     
     print "The following command lines will be executed:\n"; 
     print_progtest_command_lines();
-
-
-
 }
 
+# Extract process name from a command line. 
 sub extract_process_name{
     die if @_ != 1; 
     my ($command) = @_;
@@ -290,10 +286,132 @@ sub extract_process_name{
     return $process_name; 
 }
 
-sub run_command_lines{
-   foreach my $cl (@progtotest_command_lines){
-       run_child($cl);
+
+# Comparaison operator used for sort_tuples. 
+sub compare_tuples{
+    die if @_ != 2; 
+    my ($t1_ref, $t2_ref) = @_; 
+
+    foreach $i (@parameter_index_order){
+	return 1  if(@{$t1_ref}[$i] lt @{$t2_ref}[$i]);
+	return -1 if(@{$t1_ref}[$i] gt @{$t2_ref}[$i]);
     }
+    return 0; 
+}
+
+# Sort tuples in the fcl order.  The fcl (file, column, line) groups
+# together the tuples that have the same value on an 'f' parameter,
+# then the ones that have the same value on a 'l' parameter and so on. 
+#
+# Useful to group the execution that output in the same file. 
+sub sort_tuples{
+    die if @_ == 0;
+    my @tuples = @_;
+    
+    # Compute parmeter orders to execute commands to the same file first. 
+     @parameter_index_order = compute_flc_order(); 
+
+    @tuples = sort { compare_tuples($a, $b) } @tuples; 
+    return @tuples; 
+}
+
+
+sub start_file{
+    die if @_ != 1; 
+    my ($filename) = @_;
+    
+    open OUTPUT, ">$filename" or print STDERR "Error: Cannot create file \'$filename\'\n";
+    print_file_header(); 
+}
+
+
+sub end_file{
+    shift_line();
+    print OUTPUT "\n####\n"; 
+#    close OUTPUT; 
+}
+
+
+sub shift_line{
+    shift_column(); 
+    print OUTPUT "\n"; 
+}
+
+sub shift_column{
+    print OUTPUT "\t"; 
+}
+
+sub create_dat_filename{
+    die if @_ < 1; 
+    my @tuple = @_;
+    $filename = date_string_ymd();
+    
+    my @parameters_names = @{$parameters_value_space{names}}; 
+    my @parameters_decors = @{$parameters_value_space{decors}}; 
+
+    foreach my $v (@parameter_index_order){
+	if($parameters_decors[$v] eq 'f'){
+	    $filename .= '.'.$parameters_names[$v].'-'.$tuple[$v];
+	}
+	else{
+	    $filename .= '.'.$parameters_names[$v]; 
+	}
+    }
+    print "FILENAME $filename\n"; 
+    return $filename.'.dat'; 
+}
+
+sub run_command_lines{
+    die if @_ != 0;
+    my @parameters_names = @{$parameters_value_space{names}}; 
+    my @parameters_decors = @{$parameters_value_space{decors}}; 
+    
+# A tuple is a possible set of parameter values in the parameter value space. 
+    my $previous_tuple = -1; 
+    my $filename; 
+
+    my $tuple;
+    foreach  $tuple (sort_tuples @{$parameters_value_space{values}}){
+	 if ($previous_tuple == -1) {
+
+	     start_file(create_dat_filename(@$tuple)); 
+	 }
+	 else{
+	     # loop over the parameter values flc order
+	     foreach my $v (@parameter_index_order){
+		 if(not $tuple->[$v] eq $previous_tuple->[$v]){
+
+		     if($parameters_decors[$v] eq 'f'){
+		     # f decored parameter takes a new value => create a new file
+			 end_file();
+			 start_file(create_dat_filename(@$tuple)); 
+			 last; 
+		     }
+
+		     elsif($parameters_decors[$v] eq 'l'){
+		     # l decored parameter takes a new value => create a new line
+			 shift_line();
+			 last; 
+		     }
+		     else{
+			 # c decored parameter takes a new value => create a new column
+			 shift_column();
+			 last; 
+		     }
+		 }
+	     }
+	 }
+
+	 my $cl =  build_progtotest_command_line($progtotest_command_template, @{$tuple}); 
+	 print OUTPUT run_child($cl);
+
+	 $previous_tuple = $tuple; 
+    }
+
+    unless ($previous_tuple == -1){end_file(); }
+
+
+    
 }
 
 
@@ -304,21 +422,61 @@ sub print_progtest_command_lines{
     }
 }
 
+# Return an array of indexes in parameters names array so that any
+# parameter name with a 'f' decor occurs before any parameter name
+# with a 'l' decor and any parameter name with a 'l' decor occurs
+# before any parameter name with a 'c' decor. 
+sub compute_flc_order{
+    die if @_  != 0;
+    my @order; 
+    my @parameter_names =  @{$parameters_value_space{names}};
+    my @parameter_decors =  @{$parameters_value_space{decors}};
+
+    for my $pi (0..$#parameter_names){
+	if($parameter_decors[$pi] eq "f"){
+	    push @order, $pi; 
+	}
+    }
+    for my $pi (0..$#parameter_names){
+	if($parameter_decors[$pi] eq "l"){
+	    push @order, $pi; 
+	}
+    }
+    for my $pi (0..$#parameter_names){
+	if($parameter_decors[$pi] eq "c"){
+	    push @order, $pi; 
+	}
+    }
+
+    # print "MY ORDER \n"; 
+    # foreach $v(@order){
+    # 	print "$v "; 
+    # }
+    # print "\n";
+    return @order; 
+}
+
+# Build a command line from a parameter tuples.
+# Substitutes parameter names by corresponding values in the tuples. 
+sub build_progtotest_command_line{
+    die if @_ < 2;
+    my ($command_line_template, @tuple) = @_;
+
+    my @parameter_names =  @{$parameters_value_space{names}};
+    
+    my $command_line = $progtotest_command_template;
+    for my $i (0..$#tuple){
+	die unless ($command_line =~ s/$parameter_names[$i]/$tuple[$i]/);
+    }
+    return $command_line; 
+}
+
+
 sub build_progtotest_command_lines{
     die if @_ != 0; 
-    
-    @parameter_names =  @{$parameters_value_space{names}};
-
-    foreach $p (@parameter_names){
-	
-	print @parameter_names." parameter names $p\n"; 
-    }
-    foreach my $tuple (@{$parameters_value_space{values}}){
-	my $command_line = $progtotest_command_template; 
-	for my $i (0 .. $#$tuple){
-	    die unless ($command_line =~ s/$parameter_names[$i]/@{$tuple}[$i]/)
-    	}
-	push @progtotest_command_lines, $command_line;
+  
+    foreach my $tuple (sort_tuples @{$parameters_value_space{values}}){
+	push @progtotest_command_lines, build_progtotest_command_line($progtotest_command_template, @{$tuple});
     }
 
 }
