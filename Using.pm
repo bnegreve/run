@@ -1,6 +1,9 @@
 #!/usr/bin/perl -w
 package Using; #Using expression parser
 
+## WARNING the doc need update, the tuples now contain value indicies
+## rather than values.
+
 # Package to parse 'using expressions' in order to combine different
 # parameters and compute different tuples of parameter values. 
 #
@@ -64,12 +67,13 @@ package Using; #Using expression parser
 # term_print(parse("THREAD_NUMx(DATASET=DATASET_VALUE)")); 
 
 
-## usage example 2
-init_parser(); 
-add_parameter_value_space('D', [d1,d2]); 
+#usage example 2
+init_parser();
+add_parameter_range('C', 2); 
+add_parameter_range('D', 3); 
 #term_print(term_create_attr('D', [d1,d2]));
 #term_print(parse("DfxDc)")); 
-term_print(parse("(Df=Df)c")); 
+term_print(parse("(CfxDf)c")); 
 
 ## globals ##
 use Parse::RecDescent;
@@ -105,12 +109,14 @@ $using_expression_parser = new Parse::RecDescent($grammar);
 undef $/;
 }
 
-# Adds a parameter value space
-# e.g. add_parameter_value_space("NUMTHREAD", [1,2,4,8]");
-sub add_parameter_value_space{
+# Store the name and the number of values for a new parameter.  the
+# range [0,n[ will be use as indicies to designate the parameter values
+# in the output 
+sub add_parameter_range{
+#warning actually stores last index
      die if @_ != 2; 
-     my ($p_name, $value_space_ref) =  @_; 
-     $params{$p_name} = $value_space_ref; 
+     my ($p_name, $num_values) =  @_; 
+     $params{$p_name} = $num_values-1; 
 }
 
 # Parse a using expression 
@@ -121,20 +127,26 @@ sub parse{
 }
 
 
-# Transforms an array of values into the attribute format. In other words it
-# turns a 1D array of values in a 2D array of values with one element per internal array
+# Build an attribute structure from a terminal parameter (called a
+# term, I should change this name).  In other words it create a 2D
+# array of parameter values indices with one indice per internal array.
 sub term_create_attr{
     die if @_ != 2; 
-    my ($term_name, $value_space)= @_;
+    my ($term_name, $num_values)= @_;
     
     my %attr; 
     $attr{names} = [$term_name];
     
     my @values; 
 
-    foreach $v(@{$value_space}){
-	push @values, [$v];
+    # foreach $v(@{$value_space}){
+    # 	push @values, [$v];
+    # }
+
+    foreach my $i (0..$num_values){
+	push @values, [$i];
     }
+    
 
     $attr{values} = \@values; 
     return %attr; 

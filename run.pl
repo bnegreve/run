@@ -231,7 +231,7 @@ my @parameters_value_space;
 my @parameters_name; 
 my @progtotest_command_lines; 
 my @parameter_index_order; 
-
+my %parameter_values; # bind parameter actual values to indices. 
 init(); 
 parse_program_arguments(\@ARGV);
 check_progtotest_command_template(); 
@@ -349,12 +349,13 @@ sub create_dat_filename{
     my @parameters_names = @{$parameters_value_space{names}}; 
     my @parameters_decors = @{$parameters_value_space{decors}}; 
 
-    foreach my $v (@parameter_index_order){
-	if($parameters_decors[$v] eq 'f'){
-	    $filename .= '.'.$parameters_names[$v].'-'.$tuple[$v];
+    foreach my $i (@parameter_index_order){
+	if($parameters_decors[$i] eq 'f'){
+	    my $value = $parameter_values{$parameters_names[$i]}->[$tuple[$i]]; 
+	    $filename .= '.'.$parameters_names[$i].'-'.$value;
 	}
 	else{
-	    $filename .= '.'.$parameters_names[$v]; 
+	    $filename .= '.'.$parameters_names[$i]; 
 	}
     }
     print "FILENAME $filename\n"; 
@@ -466,7 +467,7 @@ sub build_progtotest_command_line{
     
     my $command_line = $progtotest_command_template;
     for my $i (0..$#tuple){
-	die unless ($command_line =~ s/$parameter_names[$i]/$tuple[$i]/);
+	die unless ($command_line =~ s/$parameter_names[$i]/$parameter_values{$parameter_names[$i]}->[$tuple[$i]]/);
     }
     return $command_line; 
 }
@@ -518,6 +519,14 @@ sub init{
 
 }
 
+# records a new parameter and its possible values
+sub add_parameter_values{
+     die if @_ != 2; 
+     my ($p_name, $value_space_ref) =  @_; 
+     $parameter_values{$p_name} = $value_space_ref; 
+     Using::add_parameter_range($p_name, $#{$value_space_ref}+1); 
+}
+
 sub parse_program_arguments{
     $#_ == 0 or die "Unexpected argument number.\n"; 
     my @argv = @{$_[0]}; 
@@ -560,7 +569,7 @@ sub parse_program_arguments{
 		    require Using;
 		    Using::init_parser(); 
 		    foreach my $param_name (keys %params){
-			Using::add_parameter_value_space($param_name, $params{$param_name}); 
+			add_parameter_values($param_name, $params{$param_name}); 
 		    }
 
 		    %parameters_value_space = Using::parse($param);
@@ -608,5 +617,6 @@ sub parse_program_arguments{
 	}
     }
 }
+
 
 print "END : ".date_string."\n";
