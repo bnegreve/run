@@ -459,6 +459,7 @@ sub compute_flc_order{
     return @order; 
 }
 
+
 # Build a command line from a parameter tuples.
 # Substitutes parameter names by corresponding values in the tuples. 
 sub build_progtotest_command_line{
@@ -469,7 +470,10 @@ sub build_progtotest_command_line{
     
     my $command_line = $progtotest_command_template;
     for my $i (0..$#tuple){
-	die unless ($command_line =~ s/$parameter_names[$i]/$parameter_values{$parameter_names[$i]}->[$tuple[$i]]/);
+	unless ($command_line =~ s/$parameter_names[$i]/$parameter_values{$parameter_names[$i]}->[$tuple[$i]]/){
+	    die "Cannot subtitute parameter \'$parameter_names[$i]\' by value \'$parameter_values{$parameter_names[$i]}->[$tuple[$i]]\' in command line template \'$progtotest_command_template\'.";
+	}
+	
     }
     return $command_line; 
 }
@@ -534,7 +538,7 @@ sub parse_program_arguments{
     my @argv = @{$_[0]}; 
 
     while (my $arg = shift @argv){
-	if($arg =~ /\-([putm])/){
+	if($arg =~ /\-([putm-])/){
 
 	    ####################
 	    #### parameters ####
@@ -604,18 +608,19 @@ sub parse_program_arguments{
 		    print_usage; 
 		}
 	    }
-
-
+	    
+	    elsif($1 eq '-'){
+		if(@ARGV == 0) {print_usage; die "Cannot parse command line\n";}
+		
+		$progtotest_command_template = join(' ',@argv)."\n";
+		@ARGV=(); 
+		print "COMMAND LINE TEMPLATE: ".$progtotest_command_template."\n";
+	    }
 	    else{
 		print_usage; 
+		die; 
 	    }
-	}
-	else{
-	    # parse the command to execute (so far a command can be
-	    # anything)
-	    if($arg =~ /(.*)/){
-		$progtotest_command_template = $arg
-	    }
+
 	}
     }
 }
