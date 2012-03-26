@@ -556,7 +556,7 @@ sub parse_program_arguments{
 			}
 			push @{$params{$param}}, $n; 
 		    }
-		    print_usage if ($#{$params{$param}} == 0); 
+		    print_usage if (@{$params{$param}} == 0); 
 		}
 		else{
 		    print_usage; 
