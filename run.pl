@@ -610,11 +610,10 @@ sub parse_program_arguments{
 	    }
 	    
 	    elsif($1 eq '-'){
-		if(@ARGV == 0) {print_usage; die "Cannot parse command line\n";}
+		if(@argv == 0) {print_usage; die "Cannot parse command line\n";}
 		
 		$progtotest_command_template = join(' ',@argv)."\n";
-		@ARGV=(); 
-		print "COMMAND LINE TEMPLATE: ".$progtotest_command_template."\n";
+		@argv=(); 
 	    }
 	    else{
 		print_usage; 
