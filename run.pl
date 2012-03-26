@@ -16,7 +16,7 @@ $DATA_DIR = 'DATA/';
 $DATASET_EXT = '.dat';
 
 my $timeout = -1; #In number of cycles, -1 is unlimited
-my $max_mem_usage = -1; #In kiB -1 is unlimited
+my $mem_usage_cap = -1; #In kiB -1 is unlimited
 my $total_memory; 
 
 
@@ -24,7 +24,7 @@ my $child_pid=-1;
 my $current_time = 0; 
 my $current_process_name; 
 
-$CYCLE_LEN=60; #in sec. must be 60
+$CYCLE_LEN=10; #in sec. 
 
 
 
@@ -72,13 +72,17 @@ sub get_total_memory{
 
 sub check_memory_usage{
     die if @_ != 0;
-    return 0 if($max_mem_usage == -1); 
+    return 0 if($mem_usage_cap == -1); 
     open INPUT, 'ps -eo comm,rss | awk \'/'.$current_process_name.'/ && !/awk/ {print $2}\'|'; 
     my $mem = <INPUT>;
     close INPUT;
-    print MEM "$current_time $mem"; 
-    if($mem >= $max_mem_usage){
-	print STDERR "Process $current_process_name uses more than $max_mem_usage kiB : $mem\n"; 
+    if($mem > $max_mem_usage){
+	$max_mem_usage = $mem; 
+    }
+	
+#     print MEM "$current_time $mem"; 
+    if($mem >= $mem_usage_cap){
+	print STDERR "Process $current_process_name uses more than $mem_usage_cap kiB : $mem\n"; 
 	return 1; 
     }
     else {
@@ -104,6 +108,8 @@ sub run_child{
     $current_process_name = extract_process_name($command);
     $current_time = 0; 
     my $child_pid = fork;
+    $max_mem_usage = 0; #reset mem usage 
+    
     if (not $child_pid) {
 	not $NO_OUTPUT_FILE and print "exec : $command (timeout: ".$timeout.")\n"; 
 	
@@ -117,19 +123,14 @@ sub run_child{
     }
     
     my $time;
-    open TIME, "time.dat" or die "cannot open time file\n";
-    $time = <TIME>; 
+    open TIME_TMP, "time.dat" or die "cannot open time file\n";
+    $time = <TIME_TMP>; 
     chop $time; 
-    close TIME; 
+    close TIME_TMP; 
     not $NO_OUTPUT_FILE and print "Run time : ".($time)."\n";
     
-    return $time; 
+    return ($time, $max_mem_usage); 
 }
-
-$OUTPUTDIR="times/dat/";
-system("mkdir -p $OUTPUTDIR"); 
-system("mkdir -p $OUTPUTDIR/dumps"); 
-system("mkdir -p $OUTPUTDIR/mem"); 
 
 sub run{
     my ($name, $bin, $command_line_pattern, $extract_time_func, $par) = @_; 
@@ -225,6 +226,16 @@ $config_loaded = 0;
 @runs =(); 
 
 
+my $output_dir=date_string().'/';
+$output_dir =~ s/ /_/g; 
+$output_dir =~ s/://g; 
+system("mkdir -p $output_dir"); 
+system("mkdir -p $output_dir/time"); 
+system("mkdir -p $output_dir/mem"); 
+system("mkdir -p $output_dir/output"); 
+
+my $max_mem_usage = 0; 
+
 my %params;
 my $progtotest_command_template;
 my @parameters_value_space; 
@@ -264,8 +275,8 @@ sub print_info(){
     else { print "Timeout:\t$timeout (min)\n";}
 
     print "Total memory:\t".($total_memory/1024)." MiB\n"; 
-    if ($max_mem_usage == -1){ print "Max memory usage:\tUnlimited.\n"; }
-    else { print "Max memory usage:\t".($max_mem_usage/1024)." MiB\n";}
+    if ($mem_usage_cap == -1){ print "Max memory usage:\tUnlimited.\n"; }
+    else { print "Max memory usage:\t".($mem_usage_cap/1024)." MiB\n";}
     
     print "The following command lines will be executed:\n"; 
     print_progtest_command_lines();
@@ -315,41 +326,10 @@ sub sort_tuples{
     return @tuples; 
 }
 
-
-sub start_file{
-    die if @_ != 1; 
-    my ($filename) = @_;
-    
-    open OUTPUT, ">$filename" or print STDERR "Error: Cannot create file \'$filename\'\n";
-    print_file_header(); 
-}
-
-
-sub end_file{
-    print OUTPUT "\n####\n"; 
-#    close OUTPUT; 
-}
-
-
-sub start_line{
-    die if @_ != 1; 
-    my ($line_head) = @_; 
-    print OUTPUT $line_head;
-    shift_column(); 
-}
-
-sub end_line{
-    print OUTPUT "\n"; 
-}
-
-sub shift_column{
-    print OUTPUT "\t"; 
-}
-
-sub create_dat_filename{
+sub create_dat_filename_suffix{
     die if @_ < 1; 
     my @tuple = @_;
-    $filename = date_string_ymd();
+    my $filename;
     
     my @parameters_names = @{$parameters_value_space{names}}; 
     my @parameters_decors = @{$parameters_value_space{decors}}; 
@@ -363,9 +343,68 @@ sub create_dat_filename{
 	    $filename .= '.'.$parameters_names[$i]; 
 	}
     }
-    print "FILENAME $filename\n"; 
     return $filename.'.dat'; 
 }
+
+sub create_dat_filename_suffix_full_valued{
+    die if @_ < 1; 
+    my @tuple = @_;
+    my $filename;
+    
+    my @parameters_names = @{$parameters_value_space{names}}; 
+    my @parameters_decors = @{$parameters_value_space{decors}}; 
+
+    foreach my $i (@parameter_index_order){
+	my $value = get_parameter_value($parameters_names[$i],$tuple[$i]); 
+	$filename .= '.'.$parameters_names[$i].'-'.$value;
+    }
+    return $filename; 
+}
+
+
+sub start_file{
+    die if @_ != 1; 
+    my ($tuple) = @_;
+    
+    my $filename_suffix = create_dat_filename_suffix(@$tuple); 
+    my $time_filename = $output_dir.'time/time'.$filename_suffix;
+    my $mem_filename = $output_dir.'mem/mem'.$filename_suffix;
+#    my $output_filename = $output_dir.'output/output'.$filename_suffix;
+
+    open TIME, ">$time_filename" or print STDERR "Error: Cannot create file \'$time_filename\'\n";
+    open MEM, ">$mem_filename" or print STDERR "Error: Cannot create file \'$time_filename\'\n";
+    print_file_header(); 
+}
+
+
+sub end_file{
+    print TIME "\n####\n"; 
+    print MEM "\n####\n"; 
+    close TIME; 
+    close MEM; 
+    
+#    close OUTPUT; 
+}
+
+
+sub start_line{
+    die if @_ != 1; 
+    my ($line_head) = @_; 
+    print TIME $line_head;
+    print MEM $line_head;
+    shift_column(); 
+}
+
+sub end_line{
+    print TIME "\n"; 
+    print MEM "\n"; 
+}
+
+sub shift_column{
+    print TIME "\t"; 
+    print MEM "\t"; 
+}
+
 
 sub get_parameter_value{
     die if @_ != 2; 
@@ -390,7 +429,7 @@ sub run_command_lines{
 		if($parameters_decors[$v] eq 'f'){
 		    # f decored parameter takes a new value => create a new file
 		    end_file() if ($previous_tuple != -1);
-		    start_file(create_dat_filename(@$tuple));
+		    start_file($tuple);
 		}
 
 		elsif($parameters_decors[$v] eq 'l'){
@@ -405,13 +444,18 @@ sub run_command_lines{
 	    }
 	}
 
-	 my $cl =  build_progtotest_command_line($progtotest_command_template, @{$tuple}); 
-	 print OUTPUT run_child($cl);
+	my $cl =  build_progtotest_command_line($progtotest_command_template, @{$tuple}); 
+	my ($time, $mem) =  run_child($cl);
+	print TIME "$time"; 
+	print MEM "$mem"; 
 
-	 $previous_tuple = $tuple; 
+	# move child output file in the right place
+	system ("mv out_tmp $output_dir/output/output".create_dat_filename_suffix_full_valued(@{$tuple}).'.output');
+
+	$previous_tuple = $tuple; 
     }
 
-#    unless ($previous_tuple == -1){shift_column(); end_line(); end_file(); }
+    unless ($previous_tuple == -1){shift_column(); end_line(); end_file(); }
 
 
     
@@ -522,7 +566,7 @@ sub init{
 
 # initialize timer for the control loop
     $SIG {ALRM} = sub {
-	$current_time++; 
+	$current_time+=$CYCLE_LEN; 
 	if(check_memory_usage or check_timeout){
 	    print STDERR "killing $current_process_name\n"; 
 	    do{
@@ -615,7 +659,7 @@ sub parse_program_arguments{
 	    ######################	    
 	    elsif($1 eq 'm'){
 		if(defined(my $param = shift @argv)){
-		    $max_mem_usage = $param * $total_memory / 100; 
+		    $mem_usage_cap = $param * $total_memory / 100; 
 		}
 		else{
 		    print_usage; 
@@ -638,4 +682,5 @@ sub parse_program_arguments{
 }
 
 
-print "END : ".date_string."\n";
+print "END: ".date_string."\n";
+print "Results are in: ".$output_dir."\n";
