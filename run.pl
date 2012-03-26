@@ -24,7 +24,7 @@ my $child_pid=-1;
 my $current_time = 0; 
 my $current_process_name; 
 
-$CYCLE_LEN=1; #in sec. must be 60
+$CYCLE_LEN=60; #in sec. must be 60
 
 
 
@@ -293,8 +293,8 @@ sub compare_tuples{
     my ($t1_ref, $t2_ref) = @_; 
 
     foreach $i (@parameter_index_order){
-	return 1  if(@{$t1_ref}[$i] lt @{$t2_ref}[$i]);
-	return -1 if(@{$t1_ref}[$i] gt @{$t2_ref}[$i]);
+	return 1  if(@{$t1_ref}[$i] gt @{$t2_ref}[$i]);
+	return -1 if(@{$t1_ref}[$i] lt @{$t2_ref}[$i]);
     }
     return 0; 
 }
@@ -478,9 +478,22 @@ sub build_progtotest_command_line{
     return $command_line; 
 }
 
+# helper function
+sub print_parameter_value_space{
+    die if @_ != 0;
+    my @parameter_names =  @{$parameters_value_space{names}};
+    foreach my $v (sort_tuples @{$parameters_value_space{values}}){
+	foreach my $u (0..$#{$v}){
+	    print $parameter_names[$u].'['.$v->[$u].']'.':'.get_parameter_value($parameter_names[$u], $v->[$u])." \t";
+	}
+	print "\n";
+    }
+    
+}
 
 sub build_progtotest_command_lines{
     die if @_ != 0; 
+
   
     foreach my $tuple (sort_tuples @{$parameters_value_space{values}}){
 	push @progtotest_command_lines, build_progtotest_command_line($progtotest_command_template, @{$tuple});
