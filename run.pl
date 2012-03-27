@@ -365,7 +365,7 @@ sub create_dat_filename_suffix_full_valued{
 sub start_file{
     die if @_ != 1; 
     my ($tuple) = @_;
-    
+
     my $filename_suffix = create_dat_filename_suffix(@$tuple); 
     my $time_filename = $output_dir.'time/time'.$filename_suffix;
     my $mem_filename = $output_dir.'mem/mem'.$filename_suffix;
@@ -373,7 +373,25 @@ sub start_file{
 
     open TIME, ">$time_filename" or print STDERR "Error: Cannot create file \'$time_filename\'\n";
     open MEM, ">$mem_filename" or print STDERR "Error: Cannot create file \'$time_filename\'\n";
+
+  #  print "NEW FILE     $time_filename\n"; 
     print_file_header(); 
+
+# # print line values 
+# 	print TIME "#";
+# 	foreach my $t (@{$tuple_range}){
+# 	    foreach my $v (@parameter_index_order){
+# 		if($parameters_value_space{decors}->[$v] eq 'l'){
+# 		    my $parameter_name = $parameters_value_space{names}->[$v]; 
+# 		    print TIME "$parameter_name=$t->[$v],"
+# 		}
+# 	    }
+# 	    start_column();
+# 	    end_column(); 	    
+# 	}
+    
+
+
 }
 
 
@@ -388,19 +406,61 @@ sub end_file{
 
 
 sub start_line{
-    die if @_ != 1; 
-    my ($line_head) = @_; 
-    print TIME $line_head;
-    print MEM $line_head;
-    shift_column(); 
+    die if @_ != 3; 
+    my ($tuple, $tuple_range, $print_line_head) = @_;
+
+    if($print_line_head){
+#print line values 
+	print TIME "#";
+	print MEM "#";
+	foreach my $v (@parameter_index_order){
+	    if($parameters_value_space{decors}->[$v] eq 'l'){
+		start_column();
+		my $parameter_name = $parameters_value_space{names}->[$v]; 
+		print TIME "$parameter_name";
+		print MEM "$parameter_name";
+		end_column();
+	    }
+	}
+
+	foreach my $v (@parameter_index_order){
+	    if($parameters_value_space{decors}->[$v] eq 'c'){
+		my $parameter_name = $parameters_value_space{names}->[$v]; 
+		foreach my $t (@{$tuple_range}){
+		    start_column();
+		    print TIME "$parameter_name=$t->[$v]";
+		    print MEM "$parameter_name=$t->[$v]";
+		    end_column();
+		}
+	    }
+	}
+	end_line();
+    }
+    
+    foreach my $v (@parameter_index_order){
+	start_column();
+	if($parameters_value_space{decors}->[$v] eq 'l'){
+	    my $parameter_name = $parameters_value_space{names}->[$v];
+	    start_column(); 
+	    print TIME "$tuple->[$v]";
+	    print MEM "$tuple->[$v]";
+	    end_column(); 
+	}
+    }
+
 }
+ 
 
 sub end_line{
     print TIME "\n"; 
     print MEM "\n"; 
 }
 
-sub shift_column{
+sub start_column{
+    #   print "NEW COL\n"; 
+}
+
+sub end_column{
     print TIME "\t"; 
     print MEM "\t"; 
 }
@@ -412,56 +472,122 @@ sub get_parameter_value{
     return $parameter_values{$name}->[$index];
 }
 
+# returns true if two tuple have equal value on a same level and level
+# above level can be either 'f' 'l' or 'c' e.g. (a1, b2, c1) and (a1,
+# b2, c2) are c-equal if c2 is the value of the first column
+# parameter.
+# 
+sub tuple_level_compare{
+    die if @_ != 3; 
+    my ($t1_ref, $t2_ref, $level) = @_; 
+    my $parameters_decors = $parameters_value_space{decors}; 
+
+    # print "COMPARING : false\n"; 
+    # print "TUPLE : ";print_tuple($t1_ref);
+    # print "\n"; 
+    # print "TUPLE : ";print_tuple($t2_ref); 
+    # print "\n"; 
+    
+    $below_level = 0; 
+    foreach my $v (@parameter_index_order){
+	my $decor = $parameters_decors->[$v]; 
+	if ($below_level && (not $decor eq $level)) {return 1;}
+	if(not $t1_ref->[$v] eq $t2_ref->[$v]){
+	    return 0;
+	}
+	if ($decor eq $level){$below_level = 1;}
+    }
+    return 1; 
+}
+
+
+
+# given a tuple and a flc level return the larger (wrt flc order) that
+# belong to the same class.
+# e.g. (a1f, b1l, c1l, d1, e1), l
+# will return 
+# b1l, c1l, d1, e1
+# b1l, c1l, d1, e2
+# b1l, c1l, d2, e1
+# b1l, c1l, d2, 
+sub extract_tuple_class{
+    die if @_ != 3; 
+    my ($tuples, $tuple_index, $level) = @_; 
+
+    my $end = $tuple_index; 
+    while(my $retval = tuple_level_compare($tuples->[$tuple_index], $tuples->[$end], $level)){
+#	print "RETVAL $retval\n"; 
+	$end++;
+    }
+    $end--;
+#    print "RETURNED $tuple_index, $end\n";
+    return ($tuple_index, $end); 
+}
+
 sub run_command_lines{
     die if @_ != 0;
     my @parameters_names = @{$parameters_value_space{names}}; 
     my @parameters_decors = @{$parameters_value_space{decors}}; 
     
-# A tuple is a possible set of parameter values in the parameter value space. 
+# A tuple is a possible set of parameter values in the parameter value space.
+
+#    print_parameter_value_space(); 
     my $previous_tuple = -1; 
     my $filename; 
 
     my $tuple;
-    foreach  $tuple (sort_tuples @{$parameters_value_space{values}}){
-	# loop over the parameter values flc order
-	foreach my $v (@parameter_index_order){
-	    if(not $tuple->[$v] eq $previous_tuple->[$v]){
-		if($parameters_decors[$v] eq 'f'){
-		    # f decored parameter takes a new value => create a new file
-		    end_file() if ($previous_tuple != -1);
-		    start_file($tuple);
-		}
+#    foreach  $tuple (sort_tuples @{$parameters_value_space{values}}){
+    my @tuples_sorted = sort_tuples @{$parameters_value_space{values}}; 
+    for (my $tuple_index = 0; $tuple_index <= $#tuples_sorted; $tuple_index++){
+	my ($f_start, $f_end) = extract_tuple_class(\@tuples_sorted, $tuple_index, 'f');
+#	print "FILE RANGE : $f_start, $f_end\n";
+	if($f_end - $f_start != -1){
+	    start_file($tuples_sorted[$f_start]);
+	    for (my $f_idx = $f_start; $f_idx <= $f_end; $f_idx++){
+		my ($l_start, $l_end) = extract_tuple_class(\@tuples_sorted, $f_idx, 'l');
+#		print "LINE RANGE : $l_start, $l_end\n"; 
+		if($l_end - $l_start != -1){
+		    start_line($tuples_sorted[$l_start], [@tuples_sorted[$l_start..$l_end]], $f_idx == $f_start);
+		    for (my $l_idx = $l_start; $l_idx <= $l_end; $l_idx++){
+			my ($c_start, $c_end) = 
+			    extract_tuple_class(\@tuples_sorted, $l_idx, 'c');
+#			print "COLONE RANGE : $l_idx $c_start, $c_end\n"; 
+			if($c_end - $c_start != -1){
+			    start_column($tuples_sorted[$c_start]);
+			    foreach my $c_idx ($c_start .. $c_end){
 
-		elsif($parameters_decors[$v] eq 'l'){
-		    # l decored parameter takes a new value => create a new line
-		    end_line() if ($previous_tuple != -1);
-		    start_line(get_parameter_value($parameters_names[$v], $tuple->[$v]));
+				#RUN 
+				$tuple = $tuples_sorted[$c_idx];
+
+				my $cl = 
+				    build_progtotest_command_line($progtotest_command_template,
+								  @{$tuple}); 
+				my ($time, $mem) =  run_child($cl);
+				foreach $x (@{$tuple}){
+				    print TIME $x;
+				}
+				print TIME "$time"; 
+				print MEM "$mem"; 
+
+				# move child output file in the right place
+				system ("mv out_tmp $output_dir/output/output".create_dat_filename_suffix_full_valued(@{$tuple}).'.output');
+				
+			    }
+			    end_column(); 
+
+			}
+		    $l_idx = $c_end;
+		    }
+		    end_line(); 
 		}
-		else{
-		    # c decored parameter takes a new value => create a new column
-		    shift_column();
-		}
+		$f_idx = $l_end;
 	    }
+	    end_file(); 
+	    
 	}
-
-	my $cl =  build_progtotest_command_line($progtotest_command_template, @{$tuple}); 
-	my ($time, $mem) =  run_child($cl);
-	print TIME "$time"; 
-	print MEM "$mem"; 
-
-	# move child output file in the right place
-	system ("mv out_tmp $output_dir/output/output".create_dat_filename_suffix_full_valued(@{$tuple}).'.output');
-
-	$previous_tuple = $tuple; 
+	$tuple_index = $f_end; 
     }
-
-    unless ($previous_tuple == -1){shift_column(); end_line(); end_file(); }
-
-
-    
 }
-
-
 
 sub print_progtest_command_lines{
     foreach my $cl (@progtotest_command_lines){
@@ -519,19 +645,28 @@ sub build_progtotest_command_line{
 	}
 	
     }
+    chop $command_line; 
     return $command_line; 
 }
 
 # helper function
 sub print_parameter_value_space{
     die if @_ != 0;
-    my @parameter_names =  @{$parameters_value_space{names}};
     foreach my $v (sort_tuples @{$parameters_value_space{values}}){
-	foreach my $u (0..$#{$v}){
-	    print $parameter_names[$u].'['.$v->[$u].']'.':'.get_parameter_value($parameter_names[$u], $v->[$u])." \t";
-	}
+	print_tuple($v); 
 	print "\n";
     }
+    
+}
+
+sub print_tuple{
+    die if @_ != 1;
+    my ($tuple) = @_;
+    my @parameter_names =  @{$parameters_value_space{names}};
+    
+    foreach my $u (0..$#{$tuple}){
+	print $parameter_names[$u].'['.$tuple->[$u].']'.':'.get_parameter_value($parameter_names[$u], $tuple->[$u])." \t";
+    }	
     
 }
 
@@ -684,3 +819,5 @@ sub parse_program_arguments{
 
 print "END: ".date_string."\n";
 print "Results are in: ".$output_dir."\n";
+system ("rm -f last_xp"); 
+system ("ln -s  $output_dir last_xp"); 

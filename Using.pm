@@ -67,13 +67,13 @@ package Using; #Using expression parser
 # term_print(parse("THREAD_NUMx(DATASET=DATASET_VALUE)")); 
 
 
-#usage example 2
-init_parser();
-add_parameter_range('C', 2); 
-add_parameter_range('D', 3); 
-#term_print(term_create_attr('D', [d1,d2]));
-#term_print(parse("DfxDc)")); 
-term_print(parse("(CfxDf)c")); 
+# #usage example 2
+# init_parser();
+# add_parameter_range('C', 2); 
+# add_parameter_range('D', 3); 
+# #term_print(term_create_attr('D', [d1,d2]));
+# #term_print(parse("DfxDc)")); 
+# term_print(parse("(CfxDf)c")); 
 
 ## globals ##
 use Parse::RecDescent;
@@ -270,3 +270,4 @@ sub one_of_each{
 
 
 
+1;
