@@ -104,7 +104,8 @@ sub check_timeout{
 sub run_child{
     die if (@_ != 1); 
     my $command = $_[0];
-    
+
+#    $current_bin_filename = extract_bin_filename($command);
     $current_process_name = extract_process_name($command);
     $current_time = 0; 
     my $child_pid = fork;
@@ -235,7 +236,7 @@ system("mkdir -p $output_dir/mem");
 system("mkdir -p $output_dir/output"); 
 
 my $max_mem_usage = 0; 
-
+#my $current_bin_filename; 
 my %params;
 my $progtotest_command_template;
 my @parameters_value_space; 
@@ -253,11 +254,23 @@ run_command_lines();
 
 
 sub print_file_header{
-    print OUTPUT "# Overall experiment start at $START_TIME on $hostname\n";
-    print OUTPUT "# Date : ".date_string()."\n";
-    print OUTPUT "# nb_threads in [$MIN_NUM_THREADS, $MAX_NUM_THREADS].\n";
-    print OUTPUT "# file $bin (MD5 : $md5).\n";
-    print OUTPUT "#\n# <nbthreads> <wallclock time> <usertime>\n";
+    die if @_ != 1; 
+    my ($bin) = @_; 
+
+    my $md5 = md5_file($bin); 
+    use Sys::Hostname;
+    my $hostname = hostname; 
+
+    print TIME "# Overall experiment start at $START_TIME on $hostname\n";
+    print TIME "# Date: ".date_string()."\n";
+    print TIME "# Timout for each run $timeout\n"; 
+    print TIME "# Maximum memory allowed $mem_usage_cap\n"; 
+
+    print MEM "# Overall experiment start at $START_TIME on $hostname\n";
+    print MEM "# Date : ".date_string()."\n";
+    print MEM "# Timout for each run $timeout\n"; 
+    print MEM "# Maximum memory allowed $mem_usage_cap\n"; 
+
 
     # print MEM "# Overall experiment start at $START_TIME on $hostname\n";
     # print MEM "# Date : ".date_string()."\n";
@@ -289,6 +302,21 @@ sub extract_process_name{
     my $process_name = "unknwown_process"; 
 
     if( $command =~ /.*?\/?([\w\-]+)\s/gx){
+	$process_name = $1;
+    }
+    else {
+	print STDERR "Error : cannot parse process name \n"; 
+    }
+    return $process_name; 
+}
+
+# Extract bin file name from a command line. 
+sub extract_bin_filename{
+    die if @_ != 1; 
+    my ($command) = @_;
+    my $process_name = "unknwown_process"; 
+
+    if( $command =~ /(.*?\/?[\w\-]+)\s/gx){
 	$process_name = $1;
     }
     else {
@@ -374,30 +402,30 @@ sub start_file{
     open TIME, ">$time_filename" or print STDERR "Error: Cannot create file \'$time_filename\'\n";
     open MEM, ">$mem_filename" or print STDERR "Error: Cannot create file \'$time_filename\'\n";
 
-  #  print "NEW FILE     $time_filename\n"; 
-    print_file_header(); 
+  #  print "NEW FILE     $time_filename\n";
 
-# # print line values 
-# 	print TIME "#";
-# 	foreach my $t (@{$tuple_range}){
-# 	    foreach my $v (@parameter_index_order){
-# 		if($parameters_value_space{decors}->[$v] eq 'l'){
-# 		    my $parameter_name = $parameters_value_space{names}->[$v]; 
-# 		    print TIME "$parameter_name=$t->[$v],"
-# 		}
-# 	    }
-# 	    start_column();
-# 	    end_column(); 	    
-# 	}
     
+    # this is just to find the bin name in order to compute the md5 in the file header 
+    my $cl = 
+	build_progtotest_command_line($progtotest_command_template,
+				      @{$tuple}); 
 
-
+    print_file_header(extract_bin_filename($cl)); 
 }
 
 
 sub end_file{
+    my @all_command_lines = @_; 
+
     print TIME "\n####\n"; 
     print MEM "\n####\n"; 
+
+    my $previous_cl = 
+    foreach my $cl (@all_command_lines){
+	print TIME "# $cl (executable's md5 sum: ".md5_file(extract_bin_filename($cl)).")\n";
+	print MEM "# $cl (executable's md5 sum: ".md5_file(extract_bin_filename($cl)).")\n";
+    }    
+
     close TIME; 
     close MEM; 
     
@@ -546,6 +574,7 @@ sub run_command_lines{
 #	print "FILE RANGE : $f_start, $f_end\n";
 	if($f_end - $f_start != -1){
 	    start_file($tuples_sorted[$f_start]);
+	    my @file_cl = (); 
 	    for (my $f_idx = $f_start; $f_idx <= $f_end; $f_idx++){
 		my ($l_start, $l_end) = extract_tuple_class(\@tuples_sorted, $f_idx, 'l');
 #		print "LINE RANGE : $l_start, $l_end\n"; 
@@ -566,7 +595,9 @@ sub run_command_lines{
 				    build_progtotest_command_line($progtotest_command_template,
 								  @{$tuple}); 
 				my ($time, $mem) =  run_child($cl);
-
+				
+				push @file_cl, $cl; 
+				
 				print TIME "$time"; 
 				print MEM "$mem"; 
 
@@ -583,7 +614,7 @@ sub run_command_lines{
 		}
 		$f_idx = $l_end;
 	    }
-	    end_file(); 
+	    end_file(@file_cl); 
 	    
 	}
 	$tuple_index = $f_end; 
