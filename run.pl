@@ -428,8 +428,11 @@ sub start_line{
 		my $parameter_name = $parameters_value_space{names}->[$v]; 
 		foreach my $t (@{$tuple_range}){
 		    start_column();
-		    print TIME "$parameter_name=$t->[$v]";
-		    print MEM "$parameter_name=$t->[$v]";
+		    print TIME "$parameter_name="
+			.get_parameter_value($parameter_name, $t->[$v]); 
+		    print MEM "$parameter_name="
+			.get_parameter_value($parameter_name, $t->[$v]); 
+
 		    end_column();
 		}
 	    }
@@ -442,8 +445,8 @@ sub start_line{
 	if($parameters_value_space{decors}->[$v] eq 'l'){
 	    my $parameter_name = $parameters_value_space{names}->[$v];
 	    start_column(); 
-	    print TIME "$tuple->[$v]";
-	    print MEM "$tuple->[$v]";
+	    print TIME get_parameter_value($parameter_name, $tuple->[$v]); 
+	    print MEM get_parameter_value($parameter_name, $tuple->[$v]); 
 	    end_column(); 
 	}
     }
@@ -563,9 +566,7 @@ sub run_command_lines{
 				    build_progtotest_command_line($progtotest_command_template,
 								  @{$tuple}); 
 				my ($time, $mem) =  run_child($cl);
-				foreach $x (@{$tuple}){
-				    print TIME $x;
-				}
+
 				print TIME "$time"; 
 				print MEM "$mem"; 
 
