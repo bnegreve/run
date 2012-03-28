@@ -420,7 +420,6 @@ sub end_file{
     print TIME "\n####\n"; 
     print MEM "\n####\n"; 
 
-    my $previous_cl = 
     foreach my $cl (@all_command_lines){
 	print TIME "# $cl (executable's md5 sum: ".md5_file(extract_bin_filename($cl)).")\n";
 	print MEM "# $cl (executable's md5 sum: ".md5_file(extract_bin_filename($cl)).")\n";
