@@ -246,9 +246,10 @@ init();
 parse_program_arguments(\@ARGV);
 check_progtotest_command_template(); 
 build_progtotest_command_lines();
-
 print "\n";
-print_info(); 
+print_info();
+
+create_readme_file(@ARGV); 
 run_command_lines(); 
 
 
@@ -758,6 +759,25 @@ sub add_parameter_values{
      $parameter_values{$p_name} = $value_space_ref; 
      Using::add_parameter_range($p_name, $#{$value_space_ref}+1); 
 }
+
+
+sub create_readme_file{
+    die if @_ < 1; 
+    my @argv = @_;
+    open README, ">$output_dir/README" or die $!;
+    print README "$0 ".join(' ',@argv);
+
+    print README "\n\n\n"; 
+    foreach my $cl (@progtotest_command_lines){
+	print README "$cl\n"; 
+    }    
+    print README "\n"; 
+
+    print README "Readme is incomplete so far, check in time/*.dat or mem/*.dat files for more information\n";
+	
+    close README; 
+ }
+
 
 sub parse_program_arguments{
     $#_ == 0 or die "Unexpected argument number.\n"; 
