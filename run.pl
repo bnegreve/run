@@ -408,7 +408,7 @@ sub start_file{
     # this is just to find the bin name in order to compute the md5 in the file header 
     my $cl = 
 	build_progtotest_command_line($progtotest_command_template,
-				      @{$tuple}); 
+				      $tuple, 0); 
 
     print_file_header(extract_bin_filename($cl)); 
 }
@@ -592,7 +592,7 @@ sub run_command_lines{
 
 				my $cl = 
 				    build_progtotest_command_line($progtotest_command_template,
-								  @{$tuple}); 
+								  $tuple,0); 
 				my ($time, $mem) =  run_child($cl);
 				
 				push @file_cl, $cl; 
@@ -664,15 +664,16 @@ sub compute_flc_order{
 # Build a command line from a parameter tuples.
 # Substitutes parameter names by corresponding values in the tuples. 
 sub build_progtotest_command_line{
-    die if @_ < 2;
-    my ($command_line_template, @tuple) = @_;
+    die if @_ < 3;
+    my ($command_line_template,  $tuple, $print_warning) = @_;
 
     my @parameter_names =  @{$parameters_value_space{names}};
     
     my $command_line = $progtotest_command_template;
-    for my $i (0..$#tuple){
-	unless ($command_line =~ s/$parameter_names[$i]/$parameter_values{$parameter_names[$i]}->[$tuple[$i]]/){
-	    die "Cannot subtitute parameter \'$parameter_names[$i]\' by value \'$parameter_values{$parameter_names[$i]}->[$tuple[$i]]\' in command line template \'$progtotest_command_template\'.";
+    for my $i (0..$#{$tuple}){
+	unless ($command_line =~ s/$parameter_names[$i]/$parameter_values{$parameter_names[$i]}->[$tuple->[$i]]/){
+	    
+	    print STDERR "Warning: Cannot subtitute parameter \'$parameter_names[$i]\' by value \'$parameter_values{$parameter_names[$i]}->[$tuple->[$i]]\' in command line template \'$progtotest_command_template\'.\n" if $print_warning; 
 	}
 	
     }
@@ -706,7 +707,7 @@ sub build_progtotest_command_lines{
 
   
     foreach my $tuple (sort_tuples @{$parameters_value_space{values}}){
-	push @progtotest_command_lines, build_progtotest_command_line($progtotest_command_template, @{$tuple});
+	push @progtotest_command_lines, build_progtotest_command_line($progtotest_command_template, $tuple, 1);
     }
 
 }
