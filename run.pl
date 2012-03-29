@@ -306,7 +306,7 @@ sub extract_process_name{
 	$process_name = $1;
     }
     else {
-	print STDERR "Error : cannot parse process name \n"; 
+	print STDERR "Error: cannot parse process name \n"; 
     }
     return $process_name; 
 }
@@ -321,7 +321,7 @@ sub extract_bin_filename{
 	$process_name = $1;
     }
     else {
-	print STDERR "Error : cannot parse process name \n"; 
+	print STDERR "Error: cannot parse process name \n"; 
     }
     return $process_name; 
 }
@@ -674,7 +674,7 @@ sub build_progtotest_command_line{
     for my $i (0..$#{$tuple}){
 	unless ($command_line =~ s/$parameter_names[$i]/$parameter_values{$parameter_names[$i]}->[$tuple->[$i]]/){
 	    
-	    die "Error: Cannot subtitute parameter \'$parameter_names[$i]\' by value \'$parameter_values{$parameter_names[$i]}->[$tuple->[$i]]\' in command line template \'$progtotest_command_template\'.";
+	    print STDERR "Warning: Cannot subtitute parameter \'$parameter_names[$i]\' by value \'$parameter_values{$parameter_names[$i]}->[$tuple->[$i]]\' in command line template \'$progtotest_command_template\'.\n" if $print_warning;
 	}
 	
     }
