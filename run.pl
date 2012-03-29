@@ -665,8 +665,8 @@ sub compute_flc_order{
 # Build a command line from a parameter tuples.
 # Substitutes parameter names by corresponding values in the tuples. 
 sub build_progtotest_command_line{
-    die if @_ < 3;
-    my ($command_line_template,  $tuple, $print_warning) = @_;
+    die if @_ != 3;
+    my ($command_line_template, $tuple, $print_warning) = @_;
 
     my @parameter_names =  @{$parameters_value_space{names}};
     
@@ -674,11 +674,10 @@ sub build_progtotest_command_line{
     for my $i (0..$#{$tuple}){
 	unless ($command_line =~ s/$parameter_names[$i]/$parameter_values{$parameter_names[$i]}->[$tuple->[$i]]/){
 	    
-	    print STDERR "Warning: Cannot subtitute parameter \'$parameter_names[$i]\' by value \'$parameter_values{$parameter_names[$i]}->[$tuple->[$i]]\' in command line template \'$progtotest_command_template\'.\n" if $print_warning; 
+	    die "Error: Cannot subtitute parameter \'$parameter_names[$i]\' by value \'$parameter_values{$parameter_names[$i]}->[$tuple->[$i]]\' in command line template \'$progtotest_command_template\'.";
 	}
 	
     }
-    chop $command_line; 
     return $command_line; 
 }
 
