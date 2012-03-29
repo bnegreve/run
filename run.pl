@@ -24,7 +24,7 @@ my $child_pid=-1;
 my $current_time = 0; 
 my $current_process_name; 
 
-$CYCLE_LEN=10; #in sec. 
+$CYCLE_LEN=1; #in sec. 
 
 
 
@@ -72,23 +72,20 @@ sub get_total_memory{
 
 sub check_memory_usage{
     die if @_ != 0;
-    return 0 if($mem_usage_cap == -1); 
     open INPUT, 'ps -eo comm,rss | awk \'/'.$current_process_name.'/ && !/awk/ {print $2}\'|'; 
     my $mem = <INPUT>;
     close INPUT;
-    print "MEM : $mem\n";
     if($mem > $max_mem_usage){
 	$max_mem_usage = $mem; 
     }
-	
-#     print MEM "$current_time $mem"; 
+    return 0 if($mem_usage_cap == -1); 
+
+
     if($mem >= $mem_usage_cap){
 	print STDERR "Process $current_process_name uses more than $mem_usage_cap kiB : $mem\n"; 
 	return 1; 
     }
-    else {
-	return 0; 
-    }
+    return 0; 
 }
 
 sub check_timeout{
@@ -249,6 +246,8 @@ init();
 parse_program_arguments(\@ARGV);
 check_progtotest_command_template(); 
 build_progtotest_command_lines();
+
+print "\n";
 print_info(); 
 run_command_lines(); 
 
@@ -595,11 +594,12 @@ sub run_command_lines{
 				    build_progtotest_command_line($progtotest_command_template,
 								  $tuple,0); 
 				my ($time, $mem) =  run_child($cl);
+
 				
 				push @file_cl, $cl; 
 				
 				print TIME "$time"; 
-				print MEM "$mem"; 
+				print MEM ($mem/1024); 
 
 				# move child output file in the right place
 				system ("mv out_tmp $output_dir/output/output".create_dat_filename_suffix_full_valued(@{$tuple}).'.output');
@@ -734,8 +734,9 @@ sub init{
 # initialize timer for the control loop
     $SIG {ALRM} = sub {
 	$current_time+=$CYCLE_LEN; 
+
 	if(check_memory_usage() or check_timeout()){
-	    print STDERR "killing $current_process_name\n"; 
+	    print STDERR "killing $current_process_name.\n"; 
 	    do{
 		system("killall -9 $current_process_name\n");  
 		sleep(1); 
