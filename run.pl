@@ -15,7 +15,7 @@ $NO_OUTPUT_FILE = 0;
 $DATA_DIR = 'DATA/';
 $DATASET_EXT = '.dat';
 
-my $timeout = -1; #In number of cycles, -1 is unlimited
+my $timeout = -1; #In sec, -1 is unlimited
 my $mem_usage_cap = -1; #In kiB -1 is unlimited
 my $total_memory; 
 
@@ -76,6 +76,7 @@ sub check_memory_usage{
     open INPUT, 'ps -eo comm,rss | awk \'/'.$current_process_name.'/ && !/awk/ {print $2}\'|'; 
     my $mem = <INPUT>;
     close INPUT;
+    print "MEM : $mem\n";
     if($mem > $max_mem_usage){
 	$max_mem_usage = $mem; 
     }
@@ -95,7 +96,7 @@ sub check_timeout{
     return 0 if($timeout == -1);
     
     if($current_time >= $timeout){
-	print STDERR "Process $current_process_name have been running for longer that $timeout\n"; 
+	print STDERR "Process $current_process_name have been running for longer that $timeout sec (+- $CYCLE_LEN sec)\n"; 
 	return 1; 
     }
     return 0; 
@@ -112,7 +113,7 @@ sub run_child{
     $max_mem_usage = 0; #reset mem usage 
     
     if (not $child_pid) {
-	not $NO_OUTPUT_FILE and print "exec : $command (timeout: ".$timeout.")\n"; 
+	not $NO_OUTPUT_FILE and print "Executing: $command\n"; 
 	
 	exec "/usr/bin/time -o time.dat -f \"%e\" $command 2>&1 > out_tmp " or die "command failed\n"; 
     }
@@ -128,7 +129,7 @@ sub run_child{
     $time = <TIME_TMP>; 
     chop $time; 
     close TIME_TMP; 
-    not $NO_OUTPUT_FILE and print "Run time : ".($time)."\n";
+    not $NO_OUTPUT_FILE and print "Run time : ".($time)." sec.\n";
     
     return ($time, $max_mem_usage); 
 }
@@ -285,7 +286,7 @@ sub print_info(){
     die if @_ != 0;
 
     if ($timeout == -1){ print "Timeout:\tUnlimited.\n"; }
-    else { print "Timeout:\t$timeout (min)\n";}
+    else { print "Timeout:\t$timeout (sec)\n";}
 
     print "Total memory:\t".($total_memory/1024)." MiB\n"; 
     if ($mem_usage_cap == -1){ print "Max memory usage:\tUnlimited.\n"; }
@@ -734,7 +735,7 @@ sub init{
 # initialize timer for the control loop
     $SIG {ALRM} = sub {
 	$current_time+=$CYCLE_LEN; 
-	if(check_memory_usage or check_timeout){
+	if(check_memory_usage() or check_timeout()){
 	    print STDERR "killing $current_process_name\n"; 
 	    do{
 		system("killall -9 $current_process_name\n");  
@@ -815,6 +816,7 @@ sub parse_program_arguments{
 	    elsif($1 eq 't'){
 		if(defined(my $param = shift @argv)){
 		    $timeout = $param; 
+		    print STDERR "Warning: timout value ($timeout sec) is below timeout resolution ($CYCLE_LEN sec).\n"; 
 		}
 		else{
 		    print_usage; 
@@ -836,7 +838,7 @@ sub parse_program_arguments{
 	    elsif($1 eq '-'){
 		if(@argv == 0) {print_usage; die "Cannot parse command line\n";}
 		
-		$progtotest_command_template = join(' ',@argv)."\n";
+		$progtotest_command_template = join(' ',@argv);
 		@argv=(); 
 	    }
 	    else{
