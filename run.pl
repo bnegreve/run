@@ -118,7 +118,7 @@ sub run_child{
     waitpid($child_pid, 0); 
     alarm 0;
     if($? != 0){
-	return  -1; 
+	return  ("ERR", "ERR"); 
     }
     
     my $time;
@@ -128,7 +128,7 @@ sub run_child{
     close TIME_TMP; 
     not $NO_OUTPUT_FILE and print "Run time : ".($time)." sec.\n";
     
-    return ($time, $max_mem_usage); 
+    return ($time, $max_mem_usage/1024); 
 }
 
 sub run{
@@ -592,14 +592,14 @@ sub run_command_lines{
 
 				my $cl = 
 				    build_progtotest_command_line($progtotest_command_template,
-								  $tuple,0); 
+								  $tuple,0);
 				my ($time, $mem) =  run_child($cl);
-
+				
 				
 				push @file_cl, $cl; 
 				
-				print TIME "$time"; 
-				print MEM ($mem/1024); 
+				print TIME $time; 
+				print MEM $mem; 
 
 				# move child output file in the right place
 				system ("mv out_tmp $output_dir/output/output".create_dat_filename_suffix_full_valued(@{$tuple}).'.output');
@@ -724,7 +724,6 @@ sub check_progtotest_command_template{
 }
 
 
-
 sub init{
     die if @_ != 0; 
 
@@ -734,14 +733,16 @@ sub init{
 # initialize timer for the control loop
     $SIG {ALRM} = sub {
 	$current_time+=$CYCLE_LEN; 
-
-	if(check_memory_usage() or check_timeout()){
+	my $mu = check_memory_usage();
+	my $tu = check_timeout(); 
+	if($mu or $tu){
 	    print STDERR "killing $current_process_name.\n"; 
 	    do{
 		system("killall -9 $current_process_name\n");  
 		sleep(1); 
 	    }
 	    while($_); 
+	    
 	}
 	else {
 	    alarm $CYCLE_LEN;
