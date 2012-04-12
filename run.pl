@@ -112,7 +112,7 @@ sub get_total_memory{
 
 sub check_memory_usage{
     die if @_ != 0;
-    open INPUT, 'ps -eo rss,command -w -w | awk \'/'.$current_process_name.'/ && !/awk/ {print $1}\'|'; 
+    open INPUT, 'ps -eo rss,command -w -w | awk \'/^[0-9]+ [^ ]*'.$current_process_name.'/ && !/awk/ {print $1}\'|'; 
     my $mem = <INPUT>;
     close INPUT;
     if($mem > $max_mem_usage){
