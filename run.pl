@@ -793,7 +793,8 @@ sub parse_program_arguments{
 	    elsif($1 eq 't'){
 		if(defined(my $param = shift @argv)){
 		    $timeout = $param; 
-		    print STDERR "Warning: timout value ($timeout sec) is below timeout resolution ($CYCLE_LEN sec).\n"; 
+		    if($timeout <= $CYCLE_LEN){
+			print STDERR "Warning: timout value ($timeout sec) is below timeout resolution ($CYCLE_LEN sec).\n"; }
 		}
 		else{
 		    print_usage; 
