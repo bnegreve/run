@@ -1,6 +1,12 @@
 #!/usr/bin/perl  
 #use strict; 
 
+
+use FindBin;  #thanks cjm
+use lib "$FindBin::Bin/";
+require Using;
+
+
 my $debug=0 ;
 
 
@@ -774,7 +780,6 @@ sub parse_program_arguments{
 	    ###############
 	    elsif($1 eq 'u'){
 		if(defined(my $param = shift @argv)){
-		    require Using;
 		    Using::init_parser(); 
 		    foreach my $param_name (keys %params){
 			add_parameter_values($param_name, $params{$param_name}); 
