@@ -1,25 +1,12 @@
 #!/usr/bin/perl  
-#use strict; 
 
+package main; 
+
+use strict; 
 
 use FindBin;  #thanks cjm
 use lib "$FindBin::Bin/";
 require Using;
-
-
-my $debug=0 ;
-
-
-
-$MIN_NUM_THREADS=1;
-$MAX_NUM_THREADS=2;
-$THREAD_STEP=1;
-$NUM_THREADS=$MAX_NUM_THREADS; # deprecated
-
-$NO_OUTPUT_FILE = 0; 
-
-$DATA_DIR = 'DATA/';
-$DATASET_EXT = '.dat';
 
 my $timeout = -1; #In sec, -1 is unlimited
 my $mem_usage_cap = -1; #In kiB -1 is unlimited
@@ -30,16 +17,12 @@ my $child_pid=-1;
 my $current_time = 0; 
 my $current_process_name; 
 
-$CYCLE_LEN=1; #in sec. 
-
-
-
-
+my $CYCLE_LEN=1; #in sec. 
+my $START_TIME = date_string();
 
 my %opts;
 
-$config_loaded = 0; 
-@runs =(); 
+my @runs =(); 
 
 
 my $output_dir=date_string().'/';
@@ -55,7 +38,7 @@ my $max_mem_usage = 0;
 #my $current_bin_filename; 
 my %params;
 my $progtotest_command_template;
-my @parameters_value_space; 
+my %parameter_value_space; 
 my @parameters_name; 
 my @progtotest_command_lines; 
 my @parameter_index_order; 
@@ -78,7 +61,7 @@ run_command_lines();
 
 #hash that remembers order. 
 use Tie::IxHash;
-tie %bin, 'Tie::IxHash';
+tie my %bin, 'Tie::IxHash';
 
 
 sub md5_file{
@@ -99,7 +82,6 @@ sub date_string_ymd{
     use POSIX qw/strftime/;
     return strftime('%F',localtime); 
 }
-$START_TIME = date_string;
 
 
 # Warning: may die; 
@@ -156,7 +138,7 @@ sub run_child{
     $max_mem_usage = 0; #reset mem usage 
     
     if (not $child_pid) {
-	not $NO_OUTPUT_FILE and print "Executing: $command\n"; 
+	print "Executing: $command\n"; 
 	
 	exec "/usr/bin/time -o time.dat -f \"%e\" $command 2>&1 > /tmp/out_tmp " or die "command failed\n"; 
     }
@@ -172,7 +154,7 @@ sub run_child{
     $time = <TIME_TMP>; 
     chop $time; 
     close TIME_TMP; 
-    not $NO_OUTPUT_FILE and print "Run time : ".($time)." sec.\n";
+    print "Run time : ".($time)." sec.\n";
     
     # executing post execution script
     my $pes_output; 
@@ -222,11 +204,6 @@ sub print_file_header{
 	print PES "# Maximum memory allowed ".($mem_usage_cap/1024)." MiB.\n"; 
 
     }
-    # print MEM "# Overall experiment start at $START_TIME on $hostname\n";
-    # print MEM "# Date : ".date_string()."\n";
-    # print MEM "# nb_threads in [$MIN_NUM_THREADS, $MAX_NUM_THREADS].\n";
-    # print MEM "# file $bin (MD5 : $md5).\n";
-    # print MEM "#\n# <cylce id($CYCLE_LEN)> <mem usage (kiB)>\n";
 }	    
 
 
@@ -281,7 +258,7 @@ sub compare_tuples{
     die if @_ != 2; 
     my ($t1_ref, $t2_ref) = @_; 
 
-    foreach $i (@parameter_index_order){
+    foreach my $i (@parameter_index_order){
 	return 1  if(@{$t1_ref}[$i] gt @{$t2_ref}[$i]);
 	return -1 if(@{$t1_ref}[$i] lt @{$t2_ref}[$i]);
     }
@@ -307,10 +284,11 @@ sub sort_tuples{
 sub create_dat_filename_suffix{
     die if @_ < 1; 
     my @tuple = @_;
+
     my $filename;
     
-    my @parameters_names = @{$parameters_value_space{names}}; 
-    my @parameters_decors = @{$parameters_value_space{decors}}; 
+    my @parameters_names = @{$main::parameter_value_space{names}}; 
+    my @parameters_decors = @{$main::parameter_value_space{decors}}; 
 
     foreach my $i (@parameter_index_order){
 	if($parameters_decors[$i] eq 'f'){
@@ -329,8 +307,8 @@ sub create_dat_filename_suffix_full_valued{
     my @tuple = @_;
     my $filename;
     
-    my @parameters_names = @{$parameters_value_space{names}}; 
-    my @parameters_decors = @{$parameters_value_space{decors}}; 
+    my @parameters_names = @{$main::parameter_value_space{names}}; 
+    my @parameters_decors = @{$main::parameter_value_space{decors}}; 
 
     foreach my $i (@parameter_index_order){
 	my $value = get_parameter_value($parameters_names[$i],$tuple[$i]); 
@@ -397,9 +375,9 @@ sub start_line{
 	print PES "#" if $post_exec_script_path;
 
 	foreach my $v (@parameter_index_order){
-	    if($parameters_value_space{decors}->[$v] eq 'l'){
+	    if($main::parameter_value_space{decors}->[$v] eq 'l'){
 		start_column();
-		my $parameter_name = $parameters_value_space{names}->[$v]; 
+		my $parameter_name = $main::parameter_value_space{names}->[$v]; 
 		print TIME "$parameter_name";
 		print MEM "$parameter_name";
 		print PES "$parameter_name" if $post_exec_script_path;
@@ -408,8 +386,8 @@ sub start_line{
 	}
 
 	foreach my $v (@parameter_index_order){
-	    if($parameters_value_space{decors}->[$v] eq 'c'){
-		my $parameter_name = $parameters_value_space{names}->[$v]; 
+	    if($main::parameter_value_space{decors}->[$v] eq 'c'){
+		my $parameter_name = $main::parameter_value_space{names}->[$v]; 
 		foreach my $t (@{$tuple_range}){
 		    start_column();
 		    print TIME "$parameter_name="
@@ -428,8 +406,8 @@ sub start_line{
     
     foreach my $v (@parameter_index_order){
 	start_column();
-	if($parameters_value_space{decors}->[$v] eq 'l'){
-	    my $parameter_name = $parameters_value_space{names}->[$v];
+	if($main::parameter_value_space{decors}->[$v] eq 'l'){
+	    my $parameter_name = $main::parameter_value_space{names}->[$v];
 	    start_column(); 
 	    print TIME get_parameter_value($parameter_name, $tuple->[$v]); 
 	    print MEM get_parameter_value($parameter_name, $tuple->[$v]); 
@@ -473,7 +451,7 @@ sub get_parameter_value{
 sub tuple_level_compare{
     die if @_ != 3; 
     my ($t1_ref, $t2_ref, $level) = @_; 
-    my $parameters_decors = $parameters_value_space{decors}; 
+    my $parameters_decors = $main::parameter_value_space{decors}; 
 
     # print "COMPARING : false\n"; 
     # print "TUPLE : ";print_tuple($t1_ref);
@@ -481,7 +459,7 @@ sub tuple_level_compare{
     # print "TUPLE : ";print_tuple($t2_ref); 
     # print "\n"; 
     
-    $below_level = 0; 
+    my $below_level = 0; 
     foreach my $v (@parameter_index_order){
 	my $decor = $parameters_decors->[$v]; 
 	if ($below_level && (not $decor eq $level)) {return 1;}
@@ -519,8 +497,8 @@ sub extract_tuple_class{
 
 sub run_command_lines{
     die if @_ != 0;
-    my @parameters_names = @{$parameters_value_space{names}}; 
-    my @parameters_decors = @{$parameters_value_space{decors}}; 
+    my @parameters_names = @{$main::parameter_value_space{names}}; 
+    my @parameters_decors = @{$main::parameter_value_space{decors}}; 
     
 # A tuple is a possible set of parameter values in the parameter value space.
 
@@ -529,8 +507,8 @@ sub run_command_lines{
     my $filename; 
 
     my $tuple;
-#    foreach  $tuple (sort_tuples @{$parameters_value_space{values}}){
-    my @tuples_sorted = sort_tuples @{$parameters_value_space{values}}; 
+#    foreach  $tuple (sort_tuples @{$main::parameter_value_space{values}}){
+    my @tuples_sorted = sort_tuples @{$main::parameter_value_space{values}}; 
     for (my $tuple_index = 0; $tuple_index <= $#tuples_sorted; $tuple_index++){
 	my ($f_start, $f_end) = extract_tuple_class(\@tuples_sorted, $tuple_index, 'f');
 #	print "FILE RANGE : $f_start, $f_end\n";
@@ -597,8 +575,8 @@ sub print_progtest_command_lines{
 sub compute_flc_order{
     die if @_  != 0;
     my @order; 
-    my @parameter_names =  @{$parameters_value_space{names}};
-    my @parameter_decors =  @{$parameters_value_space{decors}};
+    my @parameter_names =  @{$main::parameter_value_space{names}};
+    my @parameter_decors =  @{$main::parameter_value_space{decors}};
 
     for my $pi (0..$#parameter_names){
 	if($parameter_decors[$pi] eq "f"){
@@ -631,7 +609,7 @@ sub build_progtotest_command_line{
     die if @_ != 3;
     my ($command_line_template, $tuple, $print_warning) = @_;
 
-    my @parameter_names =  @{$parameters_value_space{names}};
+    my @parameter_names =  @{$main::parameter_value_space{names}};
     
     my $command_line = $progtotest_command_template;
     for my $i (0..$#{$tuple}){
@@ -647,7 +625,7 @@ sub build_progtotest_command_line{
 # helper function
 sub print_parameter_value_space{
     die if @_ != 0;
-    foreach my $v (sort_tuples @{$parameters_value_space{values}}){
+    foreach my $v (sort_tuples @{$main::parameter_value_space{values}}){
 	print_tuple($v); 
 	print "\n";
     }
@@ -657,7 +635,7 @@ sub print_parameter_value_space{
 sub print_tuple{
     die if @_ != 1;
     my ($tuple) = @_;
-    my @parameter_names =  @{$parameters_value_space{names}};
+    my @parameter_names =  @{$main::parameter_value_space{names}};
     
     foreach my $u (0..$#{$tuple}){
 	print $parameter_names[$u].'['.$tuple->[$u].']'.':'.get_parameter_value($parameter_names[$u], $tuple->[$u])." \t";
@@ -669,7 +647,7 @@ sub build_progtotest_command_lines{
     die if @_ != 0; 
 
   
-    foreach my $tuple (sort_tuples @{$parameters_value_space{values}}){
+    foreach my $tuple (sort_tuples @{$main::parameter_value_space{values}}){
 	push @progtotest_command_lines, build_progtotest_command_line($progtotest_command_template, $tuple, 1);
     }
 
@@ -761,7 +739,7 @@ sub parse_program_arguments{
 		    }
 		    
 		    $params{$param} = ();
-		    while(defined ($n = shift @argv)){
+		    while(defined (my $n = shift @argv)){
 			if($n =~ /^-/){
 			    unshift @argv, $n; 
 			    last; 
@@ -785,7 +763,7 @@ sub parse_program_arguments{
 			add_parameter_values($param_name, $params{$param_name}); 
 		    }
 
-		    %parameters_value_space = Using::parse($param);
+		    %main::parameter_value_space = Using::parse($param);
 		}
 		else{
 		    print_usage;
