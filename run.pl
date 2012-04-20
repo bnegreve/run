@@ -698,9 +698,10 @@ sub add_parameter_values{
 sub create_readme_file{
     die if @_ < 1; 
     my @argv = @_;
-    open README, ">>$output_dir/README" or die $!;
+    open README, ">$output_dir/README.tmp" or die $!;
 
-    print README "\n\nExpriment started at $START_TIME on ".get_hostname().".\n";
+    print README "\n###########################\n";
+    print README "Experiment started at $START_TIME on ".get_hostname().".\n";
     print README "$0 ".join(' ',@argv);
 
     print README "\n\n\n"; 
@@ -710,6 +711,20 @@ sub create_readme_file{
     print README "\n"; 
     close README; 
  }
+
+sub finalize_readme_file{
+    die if @_ != 0;
+    open README, ">>$output_dir/README" or die $!;
+    open READMETMP, "$output_dir/README.tmp" or die $!;
+    while (my $line = <READMETMP>){
+	print README $line; 
+    }
+    close READMETMP;
+    print README "Expeperiment finished at ".date_string."\n";
+    close README;
+    system ("rm -f $output_dir/README.tmp"); 
+    
+}
 
 sub populate_output_dir{
     die if @_ != 1; 
@@ -854,7 +869,7 @@ run_command_lines();
 
 
 
-
+finalize_readme_file(); 
 print "END: ".date_string."\n";
 print "Results are in: ".$output_dir."\n";
 system ("rm -f last_xp"); 
