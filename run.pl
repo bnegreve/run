@@ -25,13 +25,7 @@ my %opts;
 my @runs =(); 
 
 
-my $output_dir=date_string().'/';
-$output_dir =~ s/ /_/g; 
-$output_dir =~ s/://g; 
-system("mkdir -p $output_dir"); 
-system("mkdir -p $output_dir/time"); 
-system("mkdir -p $output_dir/mem"); 
-system("mkdir -p $output_dir/output"); 
+my $output_dir;
 
 my $post_exec_script_path; 
 my $max_mem_usage = 0; 
@@ -43,21 +37,6 @@ my @parameters_name;
 my @progtotest_command_lines; 
 my @parameter_index_order; 
 my %parameter_values; # bind parameter actual values to indices. 
-init(); 
-parse_program_arguments(\@ARGV);
-
-system("mkdir -p $output_dir/pes") if $post_exec_script_path; 
-
-check_progtotest_command_template(); 
-build_progtotest_command_lines();
-print "\n";
-print_info();
-
-create_readme_file(@ARGV); 
-run_command_lines(); 
-
-
-
 
 #hash that remembers order. 
 use Tie::IxHash;
@@ -176,29 +155,32 @@ sub print_usage{
 }
 
 
-
+sub get_hostname{
+    die if @_ != 0; 
+    use Sys::Hostname;
+    my $hostname = hostname; 
+    return $hostname; 
+}
 sub print_file_header{
     die if @_ != 1; 
     my ($bin) = @_; 
-
     my $md5 = md5_file($bin); 
-    use Sys::Hostname;
-    my $hostname = hostname; 
-
-    print TIME "# Overall experiment start at $START_TIME on $hostname\n";
+    my $hostname = get_hostname(); 
+    
+    print TIME "# Overall experiment start at $START_TIME on $hostname.\n";
     print TIME "# Date: ".date_string()."\n";
     print TIME "# Timout for each run $timeout\n"; 
     print TIME "# Maximum memory allowed ".($mem_usage_cap/1024)." MiB.\n"; 
     print MEM "# Wall clock time. (In seconds.)\n"; 
 
-    print MEM "# Overall experiment start at $START_TIME on $hostname\n";
+    print MEM "# Overall experiment start at $START_TIME on $hostname.\n";
     print MEM "# Date : ".date_string()."\n";
     print MEM "# Timout for each run $timeout\n"; 
     print MEM "# Maximum memory allowed ".($mem_usage_cap/1024)." MiB.\n"; 
     print MEM "# Memory usage. (Max, in MiB)\n"; 
 
     if($post_exec_script_path){
-	print PES "# Overall experiment start at $START_TIME on $hostname\n";
+	print PES "# Overall experiment start at $START_TIME on $hostname.\n";
 	print PES "# Date : ".date_string()."\n";
 	print PES "# Timout for each run $timeout\n"; 
 	print PES "# Maximum memory allowed ".($mem_usage_cap/1024)." MiB.\n"; 
@@ -665,6 +647,16 @@ sub check_progtotest_command_template{
 }
 
 
+sub output_dir_default_name{
+    die if @_ != 0; 
+    my $output_dir = date_string().'/';
+
+    $output_dir =~ s/ /_/g; 
+    $output_dir =~ s/://g;
+
+    return $output_dir; 
+}
+
 sub init{
     die if @_ != 0; 
 
@@ -690,6 +682,8 @@ sub init{
 	}
     };
 
+    $output_dir = output_dir_default_name(); 
+    
 }
 
 # records a new parameter and its possible values
@@ -704,7 +698,9 @@ sub add_parameter_values{
 sub create_readme_file{
     die if @_ < 1; 
     my @argv = @_;
-    open README, ">$output_dir/README" or die $!;
+    open README, ">>$output_dir/README" or die $!;
+
+    print README "\n\nExpriment started at $START_TIME on ".get_hostname().".\n";
     print README "$0 ".join(' ',@argv);
 
     print README "\n\n\n"; 
@@ -712,19 +708,26 @@ sub create_readme_file{
 	print README "$cl\n"; 
     }    
     print README "\n"; 
-
-    print README "Readme is incomplete so far, check in time/*.dat or mem/*.dat files for more information\n";
-	
     close README; 
  }
 
+sub populate_output_dir{
+    die if @_ != 1; 
+    my ($output_dir) = @_;
+
+    system("mkdir -p $output_dir/"); 
+    system("mkdir -p $output_dir/time"); 
+    system("mkdir -p $output_dir/mem"); 
+    system("mkdir -p $output_dir/output");
+    system("mkdir -p $output_dir/pes") if $post_exec_script_path; 
+}
 
 sub parse_program_arguments{
     $#_ == 0 or die "Unexpected argument number.\n"; 
     my @argv = @{$_[0]}; 
 
     while (my $arg = shift @argv){
-	if($arg =~ /\-([putms-])/){
+	if($arg =~ /\-([putmso-])/){
 
 	    ####################
 	    #### parameters ####
@@ -809,6 +812,18 @@ sub parse_program_arguments{
 		    print_usage; 
 		}
 	    }
+
+	    #################################
+	    #### use existing output dir ####
+	    #################################	    
+	    elsif($1 eq 'o'){
+		if(defined(my $param = shift @argv)){
+		    $output_dir = $param;
+		}
+		else{
+		    print_usage; 
+		}
+	    }
 	    
 	    elsif($1 eq '-'){
 		if(@argv == 0) {print_usage; die "Cannot parse command line\n";}
@@ -824,6 +839,20 @@ sub parse_program_arguments{
 	}
     }
 }
+
+init(); 
+parse_program_arguments(\@ARGV);
+populate_output_dir($output_dir); 
+
+check_progtotest_command_template(); 
+build_progtotest_command_lines();
+print "\n";
+print_info();
+
+create_readme_file(@ARGV); 
+run_command_lines(); 
+
+
 
 
 print "END: ".date_string."\n";
