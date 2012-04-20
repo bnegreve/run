@@ -818,7 +818,7 @@ sub parse_program_arguments{
 	    #################################	    
 	    elsif($1 eq 'o'){
 		if(defined(my $param = shift @argv)){
-		    $output_dir = $param;
+		    $output_dir = $param.'/';
 		}
 		else{
 		    print_usage; 
