@@ -26,6 +26,7 @@ my @runs =();
 
 
 my $output_dir;
+my $run_script_name = $0; 
 
 my $post_exec_script_path; 
 my $max_mem_usage = 0; 
@@ -150,7 +151,15 @@ sub run_child{
 
 
 sub print_usage{
-    print STDERR "Usage: $_[0] <dataset1\@support1> ... <algorith_1_name> ... [-t <min_thread>] [-T <max thread>] [-n]\n" ;
+    die if @_ != 1; 
+    my ($bin_name) = @_; 
+    print STDERR "Usage: $bin_name -p PARAMETER_NAME parameter_value_1 .. parameter_value_n\
+ [-p PARAMETER2_NAME parameter2_value_1 .. parameter2_value_n]\
+ [-s post_output_script] [-m max_memory_usage (% total)] [ -t timeout value]\
+ -u using_expression -- command_line_template\n";
+ 
+
+
     exit 0; 
 }
 
@@ -753,7 +762,7 @@ sub parse_program_arguments{
 		if(defined(my $param = shift @argv)){
 		    if(not $param =~ /[a-zA-Z_][a-zA-Z_0-9]*/){
 			print STDERR "Error: Unexpected parameter name \'$param\'.\n";
-			print_usage; 
+			print_usage($run_script_name); 
 		    }
 		    
 		    $params{$param} = ();
@@ -764,10 +773,10 @@ sub parse_program_arguments{
 			}
 			push @{$params{$param}}, $n; 
 		    }
-		    print_usage if (@{$params{$param}} == 0); 
+		    print_usage($run_script_name) if (@{$params{$param}} == 0); 
 		}
 		else{
-		    print_usage; 
+		    print_usage($run_script_name); 
 		}
 	    }
 
@@ -784,7 +793,7 @@ sub parse_program_arguments{
 		    %main::parameter_value_space = Using::parse($param);
 		}
 		else{
-		    print_usage;
+		    print_usage($run_script_name);
 		}
 	    }
 
@@ -798,7 +807,7 @@ sub parse_program_arguments{
 			print STDERR "Warning: timout value ($timeout sec) is below timeout resolution ($CYCLE_LEN sec).\n"; }
 		}
 		else{
-		    print_usage; 
+		    print_usage($run_script_name); 
 		}
 	    }
 
@@ -810,7 +819,7 @@ sub parse_program_arguments{
 		    $mem_usage_cap = $param * $total_memory / 100; 
 		}
 		else{
-		    print_usage; 
+		    print_usage($run_script_name); 
 		}
 	    }
 
@@ -824,7 +833,7 @@ sub parse_program_arguments{
 
 		}
 		else{
-		    print_usage; 
+		    print_usage($run_script_name); 
 		}
 	    }
 
@@ -836,18 +845,18 @@ sub parse_program_arguments{
 		    $output_dir = $param.'/';
 		}
 		else{
-		    print_usage; 
+		    print_usage($run_script_name); 
 		}
 	    }
 	    
 	    elsif($1 eq '-'){
-		if(@argv == 0) {print_usage; die "Cannot parse command line\n";}
+		if(@argv == 0) {print_usage($run_script_name); die "Cannot parse command line\n";}
 		
 		$progtotest_command_template = join(' ',@argv);
 		@argv=(); 
 	    }
 	    else{
-		print_usage; 
+		print_usage($run_script_name); 
 		die; 
 	    }
 
