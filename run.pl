@@ -1,12 +1,11 @@
 #!/usr/bin/perl  
-
 package main; 
-
 use strict; 
+
 
 use FindBin;  #thanks cjm
 use lib "$FindBin::Bin/";
-require Using;
+use Using;
 
 my $timeout = -1; #In sec, -1 is unlimited
 my $mem_usage_cap = -1; #In kiB -1 is unlimited
@@ -38,10 +37,6 @@ my @parameters_name;
 my @progtotest_command_lines; 
 my @parameter_index_order; 
 my %parameter_values; # bind parameter actual values to indices. 
-
-#hash that remembers order. 
-use Tie::IxHash;
-tie my %bin, 'Tie::IxHash';
 
 
 sub md5_file{

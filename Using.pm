@@ -1,6 +1,9 @@
 #!/usr/bin/perl -w
 package Using; #Using expression parser
 
+use Exporter 'import';
+@EXPORT = qw(init_parser add_parameter_range parse); 
+
 ## WARNING the doc need update, the tuples now contain value indicies
 ## rather than values.
 
@@ -109,7 +112,7 @@ $using_expression_parser = new Parse::RecDescent($grammar);
 undef $/;
 }
 
-# Store the name and the number of values for a new parameter.  the
+# Declares a new parameter and its domain size.  The
 # range [0,n[ will be use as indicies to designate the parameter values
 # in the output 
 sub add_parameter_range{
