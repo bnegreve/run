@@ -6,6 +6,7 @@ use strict;
 use FindBin;  #thanks cjm
 use lib "$FindBin::Bin/";
 use Using;
+use Proc::ProcessTable;
 
 my $timeout = -1; #In sec, -1 is unlimited
 my $mem_usage_cap = -1; #In kiB -1 is unlimited
@@ -14,7 +15,9 @@ my $total_memory;
 
 my $child_pid=-1; 
 my $current_time = 0; 
-my $current_process_name; 
+my $current_process_name;
+my $current_process_pid;
+my $current_process_err;
 
 my $CYCLE_LEN=1; #in sec. 
 my $START_TIME = date_string();
@@ -109,7 +112,9 @@ sub run_child{
 #    $current_bin_filename = extract_bin_filename($command);
     $current_process_name = extract_process_name($command);
     $current_time = 0; 
+    $current_process_err = "ERR_UKN";
     my $child_pid = fork;
+    $current_process_pid = $child_pid;
     $max_mem_usage = 0; #reset mem usage 
     
     if (not $child_pid) {
@@ -117,11 +122,13 @@ sub run_child{
 	
 	exec "/usr/bin/time -o time.dat -f \"%e\" $command 2>&1 > /tmp/out_tmp " or die "command failed\n"; 
     }
+
+
     alarm $CYCLE_LEN;
     waitpid($child_pid, 0); 
     alarm 0;
     if($? != 0){
-	return  ("ERR", "ERR"); 
+	return  ($current_process_err, $current_process_err, $current_process_err); 
     }
     
     my $time;
@@ -661,6 +668,27 @@ sub output_dir_default_name{
     return $output_dir; 
 }
 
+sub get_process_table{
+    die if @_ != 0; 
+     return new Proc::ProcessTable;
+}
+
+sub kill_process_tree{
+    die if @_ != 1; 
+    my ($pid) = @_;
+    my $t = get_process_table;
+    
+    foreach my $p (@{$t->table}) {
+	if($p->{"ppid"} == $pid){
+	    kill_process_tree($p->{"pid"}); 
+	}
+	# if($p->{"pid"} == $pid){
+	#     print "Killing".$p->{"cmndline"}."\n"; 
+	# }
+    }
+    kill 9, $pid; 
+}
+
 sub init{
     die if @_ != 0; 
 
@@ -673,13 +701,16 @@ sub init{
 	my $mu = check_memory_usage();
 	my $tu = check_timeout(); 
 	if($mu or $tu){
-	    print STDERR "killing $current_process_name.\n"; 
-	    do{
-		system("killall -9 $current_process_name\n");  
-		sleep(1); 
+	    print STDERR "killing $current_process_name.\n";
+	    kill_process_tree($current_process_pid);
+	    if($mu){
+		$current_process_err = "ERR_MEM"; 
 	    }
-	    while($_); 
-	    
+	    else{
+		$current_process_err = "ERR_TME"; 
+	    }
+
+	    sleep(1); 
 	}
 	else {
 	    alarm $CYCLE_LEN;
