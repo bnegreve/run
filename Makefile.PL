@@ -7,7 +7,8 @@ WriteMakefile(
     AUTHOR            => 'Benjamin Negrevergne <bnegreve@gmail.com>',
     VERSION_FROM      => 'lib/Runtime.pm',
     
-    PREREQ_PM         => {'Parse::RecDescent' => 1.967009,
-			  'Proc::ProcessTable' => 0.45},
+    PREREQ_PM         => {'Parse::RecDescent'  => 1.967009,
+			  'Proc::ProcessTable' => 0.45,
+			  'Digest::MD5'        => 0.08 },
     EXE_FILES         => [ 'script/runtime' ]
 );
