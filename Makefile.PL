@@ -3,10 +3,10 @@ use ExtUtils::MakeMaker;
 # See lib/ExtUtils/MakeMaker.pm for details of how to influence
 # the contents of the Makefile that is written.
 WriteMakefile(
-    NAME              => 'runtime',
-    VERSION_FROM      => 'lib/runtime.pm', # finds $VERSION
-    PREREQ_PM         => {}, # e.g., Module::Name => 1.1
+    NAME              => 'Runtime',
+    VERSION_FROM      => 'lib/Runtime.pm', # finds $VERSION
+    PREREQ_PM         => {'Parse::RecDescent' => 1.967009, 'Proc::ProcessTable' => 0.45}, # e.g., Module::Name => 1.1
     ($] >= 5.005 ?     ## Add these new keywords supported since 5.005
-      (ABSTRACT_FROM  => 'lib/runtime.pm', # retrieve abstract from module
-       AUTHOR         => 'Benjamin Negrevergne <benjamin@>') : ()),
+      (ABSTRACT_FROM  => 'lib/Runtime.pm', # retrieve abstract from module
+       AUTHOR         => 'Benjamin Negrevergne <bnegreve@gmail.com>') : ()),
 );
