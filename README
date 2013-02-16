@@ -1,15 +1,6 @@
 runtime version 0.01
 ====================
 
-INSTALLATION
-
-To install this module type the following:
-
-   perl Makefile.PL
-   make
-   make test
-   make install
-
 DEPENDENCIES
 
 This module requires these other modules and libraries:
@@ -18,9 +9,57 @@ Proc::ProcessTable
 Parse::RecDescent
 Digest::MD5
 
-COPYRIGHT AND LICENCE
 
-Put the correct copyright and licence information here.
+
+If you are the system administrator, you can install the corresponding distribution package.  
+On debian or ubuntu this can be done with:
+
+sudo apt-get install libparse-recdescent-perl libproc-processtable-perl 
+
+You can also install the cpan packages using the cpan shell:
+
+$> cpan
+
+(If it's the first time you run it, it'll ask few question, it's usually ok to provide default answers.)
+
+cpan> install Parse::RecDescent 
+cpan> install Proc::ProcessTable
+cpan> install Digest::MD5
+
+
+
+INSTALLATION
+
+To install this module type the following:
+
+   perl Makefile.PL
+   make
+   make test
+   make install 
+
+Note that you will probably need to run the last command with system administrator privileges since the default installation path is /usr. 
+Run the commmand as root or using sudo. 
+
+If you are not system administrator, you can install Runtime in your home directory like this:
+
+   perl Makefile.PL PREFIX=<prefixpath>
+   make
+   make test
+   make install 
+
+Where <prefixpath> is any directory with writing permissions, for example /home/ben/local/
+
+Note that you will also need to add the <prefixpath>/lib in your Perl library path, 
+and the <prefixpath>/bin/ dir in your path. 
+
+For example, using bash
+    export PERL5LIB=<prefixpath>/lib:$PERL5LIB
+    export PATH=<prefixpath>/bin:$PATH
+
+(Don't forget to replace <prefixpath> by the actual prefix path.)
+
+
+COPYRIGHT AND LICENCE
 
 Copyright (C) 2010-2013 by Benjamin Negrevergne
 
