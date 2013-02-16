@@ -1,3 +1,5 @@
+
+
 How to install
 
 In order to use run, you'll need the following perl packages:
@@ -15,11 +17,9 @@ You can also install the cpan packages using the cpan shell:
 
 $> cpan
 
-If it's the first time you run it, it'll ask few question, it's usually ok to provide default answers.
-This will add some configuration into your personal shell config file, do not forget to source it if necessary. Then re-run the cpan shell
-e.g.:
-$> source .bashrc
-$> cpan
+(If it's the first time you run it, it'll ask few question, it's usually ok to provide default answers.)
 
 cpan> install Parse::RecDescent 
 cpan> install Proc::ProcessTable
+
+Copyright Benjamin Negrevergne 2010-2013 
