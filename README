@@ -1,17 +1,6 @@
 runtime version 0.01
 ====================
 
-The README is used to introduce the module and provide instructions on
-how to install the module, any machine dependencies it may have (for
-example C compilers and installed libraries) and any other information
-that should be provided before the module is installed.
-
-A README file is required for CPAN modules since CPAN extracts the
-README file from a module distribution so that people browsing the
-archive can use it get an idea of the modules uses. It is usually a
-good idea to provide version information here so that people can
-decide whether fixes for the module are worth downloading.
-
 INSTALLATION
 
 To install this module type the following:
@@ -25,41 +14,17 @@ DEPENDENCIES
 
 This module requires these other modules and libraries:
 
-  blah blah blah
+Proc::ProcessTable
+Parse::RecDescent
+Digest::MD5
 
 COPYRIGHT AND LICENCE
 
 Put the correct copyright and licence information here.
 
-Copyright (C) 2013 by Benjamin Negrevergne
+Copyright (C) 2010-2013 by Benjamin Negrevergne
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.14.2 or,
 at your option, any later version of Perl 5 you may have available.
 
-
-
-
-How to install
-
-In order to use run, you'll need the following perl packages:
-
-Proc::ProcessTable;
-Parse::RecDescent;
-Digest::MD5;
-
-If you are the system administrator, you can install the corresponding distribution package.  
-On debian or ubuntu this can be done with:
-
-sudo apt-get install libparse-recdescent-perl libproc-processtable-perl 
-
-You can also install the cpan packages using the cpan shell:
-
-$> cpan
-
-(If it's the first time you run it, it'll ask few question, it's usually ok to provide default answers.)
-
-cpan> install Parse::RecDescent 
-cpan> install Proc::ProcessTable
-
-Copyright Benjamin Negrevergne 2010-2013 
