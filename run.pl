@@ -177,27 +177,28 @@ sub print_file_header{
     my ($bin) = @_; 
     my $md5 = md5_file($bin); 
     my $hostname = get_hostname(); 
-    
-    print TIME "# Overall experiment start at $START_TIME on $hostname.\n";
-    print TIME "# Date: ".date_string()."\n";
-    print TIME "# Timout for each run $timeout\n"; 
-    print TIME "# Maximum memory allowed ".($mem_usage_cap/1024)." MiB.\n"; 
-    print MEM "# Wall clock time. (In seconds.)\n"; 
 
-    print MEM "# Overall experiment start at $START_TIME on $hostname.\n";
-    print MEM "# Date : ".date_string()."\n";
-    print MEM "# Timout for each run $timeout\n"; 
-    print MEM "# Maximum memory allowed ".($mem_usage_cap/1024)." MiB.\n"; 
-    print MEM "# Memory usage. (Max, in MiB)\n"; 
+    my $date = date_string();
+        my $header_string = <<END;
+# Experiment started on: @{[date_string()]}. 
+# Machine hostname: $hostname.
+# Timout for each run $timeout s.  
+# Maximum memory usage allowed @{[$mem_usage_cap/1024]} MiB.;
+#
+END
+
+    print TIME $header_string;
+    print TIME "# Reporting: Wall clock time (in seconds).\n"; 
+
+    print MEM $header_string; 
+    print MEM  "# Reporting: Max memory usage (in MiB)"; 
 
     if($post_exec_script_path){
-	print PES "# Overall experiment start at $START_TIME on $hostname.\n";
-	print PES "# Date : ".date_string()."\n";
-	print PES "# Timout for each run $timeout\n"; 
-	print PES "# Maximum memory allowed ".($mem_usage_cap/1024)." MiB.\n"; 
+	print PES $header_string; 
+	print PES "# Reporting: User script output."
 
     }
-}	    
+}
 
 
 # Print system info and so on. 
