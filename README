@@ -3,61 +3,74 @@ runtime version 0.01
 
 DEPENDENCIES
 
-This module requires these other modules and libraries:
+Runtime requires the following CPAN modules to be available in your @INC path. 
 
-Proc::ProcessTable
-Parse::RecDescent
-Digest::MD5
+    Proc::ProcessTable
+    Parse::RecDescent
+    Digest::MD5
 
+See following section for more info about how to install.     
 
+USER LOCAL INSTALLATION
 
-If you are the system administrator, you can install the corresponding distribution package.  
-On debian or ubuntu this can be done with:
+Before you can run and install Runtime, you need to install a cuple of
+CPAN modules. This can be done without system wide permissions
+following the following steps. For a system wise installation, see next section.
 
-sudo apt-get install libparse-recdescent-perl libproc-processtable-perl 
+1. Install a writable perl directory for cpan modules
 
-You can also install the cpan packages using the cpan shell:
+    cpan (default aswers) 
 
-$> cpan
+2. Source your shell config file, for example: 
+  
+    source ~/.bashrc
 
-(If it's the first time you run it, it'll ask few question, it's usually ok to provide default answers.)
+3. Download and install the dependencies
+    
+    cpan Parse::RecDescent Proc::ProcessTable Digest::MD5
+    
+You can now build and install Runtime.
 
-cpan> install Parse::RecDescent 
-cpan> install Proc::ProcessTable
-cpan> install Digest::MD5
+4. Move to Runtime source tree.
+   
+   cd /path/to/runtime/sourcetree
 
-
-
-INSTALLATION
-
-To install this module type the following:
+5. Build and install    
 
    perl Makefile.PL
    make
    make test
    make install 
 
-Note that you will probably need to run the last command with system administrator privileges since the default installation path is /usr. 
-Run the commmand as root or using sudo. 
+More info about how to install CPAN modules here: 
+   www.cpan.org/modules/INSTALL.html
 
-If you are not system administrator, you can install Runtime in your home directory like this:
+SYSTEM WISE INSTALLATION 
 
-   perl Makefile.PL PREFIX=<prefixpath>
+1. Install the dependencies using the system package manager.
+For example, on Debian (and proably Ubuntu) you can install the dependencies as follows:
+
+    sudo apt-get install libproc-processtable-perl libparse-recdescent-perl libdigest-md5-file-perl
+
+(Note that on a different distribution, package names may differs.)
+
+2. Move to Runtime source tree.
+   
+   cd /path/to/runtime/sourcetree
+
+3. Build and install    
+
+   perl Makefile.PL
    make
    make test
    make install 
 
-Where <prefixpath> is any directory with writing permissions, for example /home/ben/local/
+3'. If you feel like, you can spefy a different prefix path:
 
-Note that you will also need to add the <prefixpath>/lib in your Perl library path, 
-and the <prefixpath>/bin/ dir in your path. 
-
-For example, using bash
-    export PERL5LIB=<prefixpath>/lib:$PERL5LIB
-    export PATH=<prefixpath>/bin:$PATH
-
-(Don't forget to replace <prefixpath> by the actual prefix path.)
-
+   perl Makefile.PL PREFIX=prefix/
+   make
+   make test
+   make install 
 
 COPYRIGHT AND LICENCE
 

@@ -1,4 +1,6 @@
 MANIFEST
+README
+Makefile.PL
 lib/Runtime.pm
 lib/Using.pm
 script/runtime
