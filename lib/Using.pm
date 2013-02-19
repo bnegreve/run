@@ -7,6 +7,7 @@ use Exporter 'import';
 
 ## globals ##
 use Parse::RecDescent;
+use Switch; 
 $::RD_HINT = 1; 
 
 # This module parses using expression and build an abstract syntax
@@ -149,7 +150,8 @@ sub declare_parameter{
      $params{$p_name} = $num_values-1; 
 }
 
-# Parse a using expression 
+# Parse a using expression and return an abstract syntax tree for this
+# expression.
 sub parse{
     die if @_ != 1; 
     my ($expr) = @_; 
@@ -198,7 +200,6 @@ sub attr_print_term_names{
     }
     print "\n"; 
 }
-
 
 sub attr_set_decor_array{
     die if @_ != 2;
