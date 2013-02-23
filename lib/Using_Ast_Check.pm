@@ -54,15 +54,16 @@ sub check_ast{
 # Check abstract syntax tree, helper function.  
 sub check_ast_node{
     die if @_ != 1; 
-    my %ast_node = %{$_[0]};
-    
-    if(defined $ast_node{left}){
-	check_ast_node($ast_node{left});
-	check_ast_node($ast_node{right}); 
+    my $ast_node = $_[0];
+
+    if(defined $ast_node->{left}){
+	check_ast_node($ast_node->{left});
+	check_ast_node($ast_node->{right}); 
     }
 
-    switch ($ast_node{type}){
-	case /parameter/ {check_parameter_node(\%ast_node)}
+    switch ($ast_node->{type}){
+	case /parameter/ {check_parameter_node($ast_node)};
+	case /.*_operator/ { check_binary_operator_node($ast_node)}
     }
 }
 
@@ -74,12 +75,19 @@ sub tuples_to_string{
     foreach my $t (@$tuples){
 	$string.= "[ ";
 	foreach my $tt (@$t){
-	    $string.= "$tt "; 
+	    $string.= parameter_value_ref_to_string(@$tt); 
 	}
 	$string.= "] ";
     }
     $string.= "}, ";
     return $string;
+}
+
+
+# parameter value refs are arrays <parameter name, index in the value space>
+sub parameter_value_ref_to_string{
+    die if @_ != 2; 
+    return "<$_[0]:$_[1]> "; 
 }
 
 # check parameter node. 
@@ -91,7 +99,7 @@ sub check_parameter_node{
     if (defined $params{$value->{name}}){
 	my $i = 0;
 	my $size = @params{$value->{name}};
-	my @tmp = map { [$_] } @{$params{$value->{name}}};
+	my @tmp = map { [[$value->{name}, $i++]] } @{$params{$value->{name}}};
 	$value->{tuples} = \@tmp; 
     }
     else{
@@ -99,6 +107,41 @@ sub check_parameter_node{
     }
 }
 
+# check that the subtrees are valid for a product operation, build the
+# tuples and put the result in the node value field. 
+sub check_binary_operator_node{
+    die if @_ != 1;
+    my $ast_node = $_[0];
+
+    die if (not (defined($ast_node->{left}) and defined($ast_node->{right}))); 
+    my $left = $ast_node->{left};
+    my $right = $ast_node->{right};
+
+    switch ($ast_node->{type}){
+	case /eq_operator/ {check_eq_operator_node($ast_node, $left, $right)};
+	case /prod_operator/ {check_prod_operator_node($ast_node, $left, $right)}; 
+    }
+}
+
+sub check_prod_operator_node{
+    die if @_ != 3;
+    my ($node, $left, $right) = @_;
+
+    $node->{value} = {tuples => []};
+    my $left_tuples = $left->{value}->{tuples};
+    my $right_tuples = $right->{value}->{tuples};
+
+    foreach my $v1 (@$left_tuples){
+    	foreach my $v2 (@$right_tuples){
+	    push $node->{value}->{tuples}, [@$v1, @$v2];
+    	}
+    }
+    
+}
+
+sub check_eq_operator_node{
+die;
+}
 
 sub guess_format_specification{
     die "You must provide format specification for each parameter f: one value per file, c: one value per column, l: one value per line. For example P1fxP2lxP3c"; 
