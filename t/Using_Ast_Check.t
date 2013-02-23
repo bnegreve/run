@@ -21,15 +21,25 @@ BEGIN { use_ok('Using_Ast_Check') };
 
 
 my $ast = parse("(P1=P2)cxP3f"); 
+
 check_ast($ast);
 is($Using_Ast_Check::errors, 3, "3 fail undeclared\n"); 
+$Using_Ast_Check::errors = 0; 
+
 declare_parameter("P1", qw(1 2 3));
 check_ast($ast);
 is($Using_Ast_Check::errors, 2, "2 fail undeclared\n"); 
+$Using_Ast_Check::errors = 0; 
+
 declare_parameter("P2", qw(1 2 3));
 declare_parameter("P3", qw(3));
 check_ast($ast);
 is($Using_Ast_Check::errors, 0, "0 fail undeclared\n");
+$Using_Ast_Check::errors = 0; 
+
+declare_parameter("P3", qw(3));
+is($Using_Ast_Check::errors, 1, "3 fail already declared\n"); 
+$Using_Ast_Check::errors = 0; 
 
 
 

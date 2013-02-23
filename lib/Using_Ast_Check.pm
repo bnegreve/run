@@ -25,27 +25,30 @@ sub params_to_string{
 }
 
 
-
-# Exported function.  Declares a new parameter and its domain size.
-# Undeclared parameters occuring in the using expression will raise
-# errors.
-sub declare_parameter{
-#warning actually stores last index
-    die if @_ < 2; 
-     my ($p_name, @value_space) =  @_; 
-     $params{$p_name} = \@value_space; 
-}
-
 sub fatal_error{
     die if @_ != 1; 
     print STDERR 'Error, while parsing using expression: '.$_[0]."\n"; 
     $errors++; 
 }
 
+
+# Declares a new parameter and its domain size.  Undeclared parameters
+# occuring in the using expression will raise errors.
+sub declare_parameter{
+#warning actually stores last index
+    die if @_ < 2; 
+     my ($p_name, @value_space) =  @_; 
+    if(not defined $params{$p_name}){
+	$params{$p_name} = \@value_space; 
+    } 
+    else{
+	fatal_error 'Parameter \''.$p_name.'\' already declared.';
+    }
+}
+
 # Check abstract syntax tree. 
 sub check_ast{
      die if @_ != 1;
-     $errors = 0;
      check_ast_node($_[0]); 
 }
 
@@ -64,6 +67,7 @@ sub check_ast_node{
      }
 }
 
+# check parameter node. 
 sub check_parameter_node{
     die if @_ != 1;
     my %ast_node = %{$_[0]};
