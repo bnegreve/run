@@ -9,7 +9,7 @@ use strict;
 use warnings;
 
 
-use Test::More tests => 4;
+use Test::More tests => 5;
 use Using; 
 
 BEGIN { use_ok('Using_Ast_Check') };
