@@ -26,7 +26,7 @@ sub params_to_string{
 
 sub fatal_error{
     die if @_ != 1; 
-    print STDERR 'Error, while parsing using expression: '.$_[0]."\n"; 
+    print STDERR 'Error while parsing using expression: '.$_[0]."\n"; 
     $errors++; 
 }
 
@@ -123,6 +123,11 @@ sub check_binary_operator_node{
     }
 }
 
+# Update tuples field in non terminal. 
+# prod combines the tuples from the child subtrees. 
+# (catherisian product) 
+# i.e. [<A:0>] [<A:1>] combined with [<B:0>] [<B:1>]
+# becomes [<A:0><B:0>] [<A:0><B:1>] [<A:1><B:0>]  [<A:1><B:1>]
 sub check_prod_operator_node{
     die if @_ != 3;
     my ($node, $left, $right) = @_;
@@ -139,8 +144,29 @@ sub check_prod_operator_node{
     
 }
 
+# Update tuples field in non terminal.  eq combines maps each value
+# ref in the left subtree to a value ref in the right subtree with
+# respect to the input order.  i.e. [<A:0>] [<A:1>] combined with
+# [<B:0>] [<B:1>] becomes [<A:0><B:0>] [<A:1><B:1>].
 sub check_eq_operator_node{
-die;
+    die if @_ != 3;
+    my ($node, $left, $right) = @_;
+    my $left_tuples = $left->{value}->{tuples};
+    my $right_tuples = $right->{value}->{tuples};
+
+    my $s1 = @{$left->{value}->{tuples}};
+    my $s2 = @{$right->{value}->{tuples}};
+    if ($s1 != $s2){
+	fatal_error "The '=' operator can only be applied to value spaces of\
+ the same size. Left operand size: $s1, right operand size: $s2".; 
+    }
+
+    $node->{value} = {tuples => []};
+    for my $i (0..$#{$left_tuples}){
+	push $node->{value}->{tuples},
+	[@{$left_tuples->[$i]}, @{$right_tuples->[$i]}];
+    }
+
 }
 
 sub guess_format_specification{
