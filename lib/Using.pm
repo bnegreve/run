@@ -57,15 +57,17 @@ BEGIN{
 # corresponding using expressions.  Mainly for debug/testing purposes.
 sub ast_to_string{
     die if (@_ != 1);
-    return ast_to_string_subtree("", $_[0], 0); 
+    return ast_to_string_subtree($_[0], 0); 
 }
 
 # Worker (recursive) function for ast_to_string
 sub ast_to_string_subtree{
-    die if (@_ != 3);
-    my $string = $_[0]; 
-    my %ast = %{$_[1]};
-    my $depth = $_[2]; 
+    die if (@_ != 2);
+    my %ast = %{$_[0]};
+    my $depth = $_[1]; 
+
+    my $string = "";
+
 
     foreach my $i (1..$depth){
 	$string.="  "; 
@@ -87,10 +89,10 @@ sub ast_to_string_subtree{
     $string.="\n"; 
 
     if ( defined($ast{left}) ){
-	$string.=ast_to_string_subtree($string, $ast{left}, $depth+1);
+	$string.=ast_to_string_subtree($ast{left}, $depth+1);
     }
     if ( defined($ast{right}) ){
-	$string.=ast_to_string_subtree($string, $ast{right}, $depth+1);
+	$string.=ast_to_string_subtree($ast{right}, $depth+1);
     }
     return $string; 
 }
