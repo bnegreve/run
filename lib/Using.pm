@@ -1,13 +1,11 @@
-#!/usr/bin/perl -w
 package Using; #Using expression parser
 
 use Exporter 'import';
-@EXPORT = qw(init_parser declare_parameter parse %using_ast ast_to_string parse); 
+@EXPORT = qw(ast_to_string parse); 
 
 
 ## globals ##
 use Parse::RecDescent;
-use Switch; 
 $::RD_HINT = 1; 
 
 # This module parses using expression and build an abstract syntax
@@ -22,8 +20,39 @@ $::RD_HINT = 1;
 # print ast_to_string(parse("(P1=P2)cxP3f")); 
 # Will output a nice ast for the expression (P1=P2)cxP3f
 #
-# The exact grammar can be found further in the init_parser function. 
-#
+# The exact grammar can be found in the BEGIN block bellow.
+# 
+
+my $using_expression_parser;
+
+# Initializes the parser module, must be called before any other call
+BEGIN{
+    my $grammar = q {
+  start : expression {$return = $item[1];}|error
+  expression: and_expr '=' expression
+               {$return = Using::ast_create_eq_operator_node($item[1], $item[3]);}
+            | and_expr
+ 
+   and_expr:   brack_expr 'x' and_expr 
+               {$return = Using::ast_create_prod_operator_node($item[1], $item[3]);}
+           | brack_expr
+ 
+  brack_expr: '(' expression ')' decor
+               {Using::ast_append_decor($item[2], $item[4]); $return = $item[2];}
+            | term decor
+               {Using::ast_append_decor($item[1], $item[2]); $return = $item[1];}
+
+  decor: /[clf]?/
+
+  term: /[A-Z][A-Z_0-9]*/ 
+               {$return  = Using::ast_create_parameter_node($item[1]);}
+
+  error:/.*/ {print "Error\n";}
+};
+
+    $using_expression_parser = new Parse::RecDescent($grammar);
+    undef $/;
+}
 
 # Build a string representing the abstract syntax tree for the
 # corresponding using expressions.  Mainly for debug/testing purposes.
@@ -111,34 +140,6 @@ sub ast_append_decor{
     }
 }
 
-# Initializes the parser module, must be called before any other call
-sub init_parser{
-    my $grammar = q {
-  start : expression {$return = $item[1];}|error
-  expression: and_expr '=' expression
-               {$return = Using::ast_create_eq_operator_node($item[1], $item[3]);}
-            | and_expr
- 
-   and_expr:   brack_expr 'x' and_expr 
-               {$return = Using::ast_create_prod_operator_node($item[1], $item[3]);}
-           | brack_expr
- 
-  brack_expr: '(' expression ')' decor
-               {Using::ast_append_decor($item[2], $item[4]); $return = $item[2];}
-            | term decor
-               {Using::ast_append_decor($item[1], $item[2]); $return = $item[1];}
-
-  decor: /[clf]?/
-
-  term: /[A-Z][A-Z_0-9]*/ 
-               {$return  = Using::ast_create_parameter_node($item[1]);}
-
-  error:/.*/ {print "Error\n";}
-};
-
-$using_expression_parser = new Parse::RecDescent($grammar);
-undef $/;
-}
 
 # Exported function.  Declares a new parameter and its domain size.
 # Undeclared parameters occuring in the using expression will raise

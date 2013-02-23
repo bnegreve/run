@@ -19,8 +19,6 @@ BEGIN { use_ok('Using') };
 # its man page ( perldoc Test::More ) for help writing this test script.
 
 
-Using::init_parser();
-
 is(Using::ast_to_string(parse("P1")), 
    "- node type: parameter, node value: { decor_string: , name: P1, }\n", "e1"); 
 
