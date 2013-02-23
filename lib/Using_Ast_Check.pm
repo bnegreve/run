@@ -27,9 +27,9 @@ sub params_to_string{
 sub fatal_error{
     die if @_ != 1; 
     print STDERR 'Error while parsing using expression: '.$_[0]."\n"; 
-    $errors++; 
+    $errors++;
+    exit(1); 
 }
-
 
 # Declares a new parameter and its domain size.  Undeclared parameters
 # occuring in the using expression will raise errors.
@@ -112,7 +112,7 @@ sub check_parameter_node{
 sub check_binary_operator_node{
     die if @_ != 1;
     my $ast_node = $_[0];
-
+    
     die if (not (defined($ast_node->{left}) and defined($ast_node->{right}))); 
     my $left = $ast_node->{left};
     my $right = $ast_node->{right};
@@ -157,8 +157,8 @@ sub check_eq_operator_node{
     my $s1 = @{$left->{value}->{tuples}};
     my $s2 = @{$right->{value}->{tuples}};
     if ($s1 != $s2){
-	fatal_error "The '=' operator can only be applied to value spaces of\
- the same size. Left operand size: $s1, right operand size: $s2".; 
+	fatal_error "The '=' operator can only be applied to value spaces of
+ the same size. Left operand size: $s1, right operand size: $s2.";
     }
 
     $node->{value} = {tuples => []};
@@ -166,7 +166,12 @@ sub check_eq_operator_node{
 	push $node->{value}->{tuples},
 	[@{$left_tuples->[$i]}, @{$right_tuples->[$i]}];
     }
+}
 
+sub ast_get_tuples{
+    die if @_ != 1;
+    my ($ast) = @_; 
+    return $ast->{value}->{tuples}; 
 }
 
 sub guess_format_specification{
@@ -179,152 +184,10 @@ sub guess_format_specification{
 
 }
 
-
-# Build an attribute structure from a terminal parameter (called a
-# term, I should change this name).  In other words it create a 2D
-# array of parameter values indices with one indice per internal array.
-sub term_create_attr{
-    die if @_ != 2; 
-    my ($term_name, $num_values)= @_;
-    
-    my %attr; 
-    $attr{names} = [$term_name];
-    
-    my @values; 
-
-    # foreach $v(@{$value_space}){
-    # 	push @values, [$v];
-    # }
-
-    foreach my $i (0..$num_values){
-	push @values, [$i];
-    }
-    
-
-    $attr{values} = \@values; 
-    return %attr; 
-}
-
-# sub attr_print_term_names{
-#     die if @_ != 1;
-#     my ($attr_ref) = @_;
-
-#     foreach my $name (@{$attr_ref->{names}}){
-#     	print "$name,\t"; 
-#     }
-#     print "\n";
-
-#     foreach my $decor (@{$attr_ref->{decors}}){
-#     	print "$decor,\t"; 
-#     }
-#     print "\n"; 
-# }
-
-# sub attr_set_decor_array{
-#     die if @_ != 2;
-#     my ($attr_ref, $decor_array_ref) = @_;
-#     $attr_ref->{decors} = $decor_array_ref; 
-# }
-
-# sub attr_set_decors_from_value{
-#     die if @_ != 2;
-#     my ($attr_ref, $decor) = @_;
-#     for my $i (0 .. $#{$attr_ref->{decors}}){
-# 	@{$attr_ref->{decors}}[$i] = $decor;
-#     }
-# }
-
-
-# sub term_print{
-# #    die if @_ == 0;
-#     my %attr = @_;
-#     attr_print_term_names(\%attr);
-
-#     foreach $v1 (@{$attr{values}}){
-# 	foreach $v2 (@$v1){
-# 	    print "$v2,\t"; 
-# 	}
-# 	print "\n"; 
-#     }
-# }
-
-# # sub array_print{
-# #     my $array = $_[0];
-# #     print ("ARRAY SIZE $#$array \n");
-# #     foreach $v (@$array){
-# # 	print ("$v "); 
-# #     }
-# #     print ("\n"); 
-# # }
-
-
-
-# sub cart_product{
-#     my %attr;
-#     my ($t1_ref, $t2_ref) = @_;
-
-
-#     # print "#CART PRODUCT ARRAY 1\n"; 
-#     # term_print(%$t1_ref); 
-
-#     # print "#CART PRODUCT ARRAY 2\n";
-#     # term_print(%$t2_ref); 
-
-#     # deals with term names & decors
-#     $attr{names} = [@{$t1_ref->{names}}, @{$t2_ref->{names}}];
-#     $attr{decors} = [@{$t1_ref->{decors}}, @{$t2_ref->{decors}}];
-
-#     # deals with values
-#     foreach $v1 (@{$t1_ref->{values}}){
-#     	foreach $v2 (@{$t2_ref->{values}}){
-#     	    push @{$attr{values}}, [@$v1, @$v2];
-#     	}
-#     }
-
-
-#     # print "#CART PRODUCT OUTPUT\n";
-#     # term_print(%attr); 
-
-#    return %attr; 
-# }
-
-
-
-# sub one_of_each{
-#     my %attr;
-#     my ($t1_ref, $t2_ref) = @_; 
-
-#    # print "#OOE PRODUCT ARRAY 1\n"; 
-#    # term_print(@{$t1}); 
-
-#    # print "#OOE PRODUCT ARRAY 2\n";
-#    # term_print(@{$t2}); 
-
-#     ($#{$t1_ref->{values}} == $#{$t2_ref->{values}}) or die "\'=\' opertion between parameters with different number of values\n";
-
-#     # deals with term names & decors
-#     $attr{names} = [@{$t1_ref->{names}}, @{$t2_ref->{names}}];
-#     $attr{decors} = [@{$t1_ref->{decors}}, @{$t2_ref->{decors}}];
-
-#     # deals with values
-#     $t1_values_ref = $t1_ref->{values}; 
-#     $t2_values_ref = $t2_ref->{values}; 
-#     for $i (0..$#{$t1_values_ref}){
-# 	push @{$attr{values}}, [@{@{$t1_values_ref}[$i]}, @{@$t2_values_ref[$i]}];
-#     }
-
-#    # print "#OOE OUTPUT1\n"; 
-#    # term_print(@output); 
-
-
-#    return %attr; 
-# }
-
-
 END{
-    if($errors != 0){
-	print STDERR "Cannot run experiments because of $errors fatal error(s) while checking the using expression.\n"; 
-    }
-}
+     if($errors != 0){
+	 print STDERR "Cannot go further because of $errors error(s) found while checking using expression.\n"; 
+     }
 
+}
 1; 
