@@ -1,8 +1,7 @@
 package Using; #Using expression parser
-
+use strict;
 use Exporter 'import';
-@EXPORT = qw(ast_to_string parse); 
-
+our @EXPORT = qw(ast_to_string parse); 
 
 ## globals ##
 use Parse::RecDescent;
@@ -76,7 +75,12 @@ sub ast_to_string_subtree{
     if ( defined($ast{value}) ){
 	$string.= ", node value: { "; 
 	foreach my $k (keys %{$ast{value}}){
-	    $string.="$k: ".$ast{value}{$k}.", ";;
+	    if($k eq "tuples"){
+		$string.= Using_Ast_Check::tuples_to_string($ast{value}{$k});
+	    }
+	    else{
+		$string.="$k: ".$ast{value}{$k}.", ";
+	    }
 	}
 	$string.="}";
     }

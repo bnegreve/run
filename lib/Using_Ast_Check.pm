@@ -1,14 +1,13 @@
 package Using_Ast_Check; 
+use strict;
 use Switch; 
 use Exporter 'import';
-@EXPORT = qw(declare_parameter check_ast params_to_string $erros); 
+our @EXPORT = qw(declare_parameter check_ast params_to_string $erros); 
 
 # Context check ast produced by Using.pm
 
-BEGIN{
-my %params = (); 
-my $errors = 0; 
-}
+our %params = (); 
+our $errors = 0; 
 
 # Prints the list of declared parameters and their value space. 
 sub params_to_string{
@@ -37,7 +36,7 @@ sub fatal_error{
 sub declare_parameter{
 #warning actually stores last index
     die if @_ < 2; 
-     my ($p_name, @value_space) =  @_; 
+    my ($p_name, @value_space) =  @_; 
     if(not defined $params{$p_name}){
 	$params{$p_name} = \@value_space; 
     } 
@@ -48,8 +47,8 @@ sub declare_parameter{
 
 # Check abstract syntax tree. 
 sub check_ast{
-     die if @_ != 1;
-     check_ast_node($_[0]); 
+    die if @_ != 1;
+    check_ast_node($_[0]); 
 }
 
 # Check abstract syntax tree, helper function.  
@@ -57,33 +56,46 @@ sub check_ast_node{
     die if @_ != 1; 
     my %ast_node = %{$_[0]};
     
-     if(defined $ast_node{left}){
-	 check_ast_node($ast_node{left});
-	 check_ast_node($ast_node{right}); 
-     }
+    if(defined $ast_node{left}){
+	check_ast_node($ast_node{left});
+	check_ast_node($ast_node{right}); 
+    }
 
-     switch ($ast_node{type}){
-	 case /parameter/ {check_parameter_node(\%ast_node)}
-     }
+    switch ($ast_node{type}){
+	case /parameter/ {check_parameter_node(\%ast_node)}
+    }
+}
+
+sub tuples_to_string{
+    die if @_ != 1; 
+    my $tuples = $_[0];
+    my $string = ""; 
+    $string.= "tuples: { ";
+    foreach my $t (@$tuples){
+	$string.= "[ ";
+	foreach my $tt (@$t){
+	    $string.= "$tt "; 
+	}
+	$string.= "] ";
+    }
+    $string.= "}, ";
+    return $string;
 }
 
 # check parameter node. 
 sub check_parameter_node{
     die if @_ != 1;
-    my %ast_node = %{$_[0]};
-    my %value = %{$ast_node{value}};
+    my $ast_node = $_[0];
+    my $value = $ast_node->{value};
 
-    if (defined $params{$value{name}}){
-       # is declared, check it. 
-	# #check decor string
-	# my $decor_string = $value{decor_string}; 
-	# if($decor_string =~ /[fcl]/){
-	# 	$decor_string .= guess_format_specification(); 
-	# }
-
+    if (defined $params{$value->{name}}){
+	my $i = 0;
+	my $size = @params{$value->{name}};
+	my @tmp = map { [$_] } @{$params{$value->{name}}};
+	$value->{tuples} = \@tmp; 
     }
     else{
-	fatal_error 'Parameter \''.$value{name}.'\' undeclared.';
+	fatal_error 'Parameter \''.$value->{name}.'\' undeclared.';
     }
 }
 
@@ -127,12 +139,12 @@ sub term_create_attr{
 # sub attr_print_term_names{
 #     die if @_ != 1;
 #     my ($attr_ref) = @_;
-    
+
 #     foreach my $name (@{$attr_ref->{names}}){
 #     	print "$name,\t"; 
 #     }
 #     print "\n";
-    
+
 #     foreach my $decor (@{$attr_ref->{decors}}){
 #     	print "$decor,\t"; 
 #     }
@@ -181,7 +193,7 @@ sub term_create_attr{
 # sub cart_product{
 #     my %attr;
 #     my ($t1_ref, $t2_ref) = @_;
-    
+
 
 #     # print "#CART PRODUCT ARRAY 1\n"; 
 #     # term_print(%$t1_ref); 
@@ -192,7 +204,7 @@ sub term_create_attr{
 #     # deals with term names & decors
 #     $attr{names} = [@{$t1_ref->{names}}, @{$t2_ref->{names}}];
 #     $attr{decors} = [@{$t1_ref->{decors}}, @{$t2_ref->{decors}}];
-    
+
 #     # deals with values
 #     foreach $v1 (@{$t1_ref->{values}}){
 #     	foreach $v2 (@{$t2_ref->{values}}){
@@ -212,7 +224,7 @@ sub term_create_attr{
 # sub one_of_each{
 #     my %attr;
 #     my ($t1_ref, $t2_ref) = @_; 
-    
+
 #    # print "#OOE PRODUCT ARRAY 1\n"; 
 #    # term_print(@{$t1}); 
 
@@ -224,7 +236,7 @@ sub term_create_attr{
 #     # deals with term names & decors
 #     $attr{names} = [@{$t1_ref->{names}}, @{$t2_ref->{names}}];
 #     $attr{decors} = [@{$t1_ref->{decors}}, @{$t2_ref->{decors}}];
-    
+
 #     # deals with values
 #     $t1_values_ref = $t1_ref->{values}; 
 #     $t2_values_ref = $t2_ref->{values}; 
@@ -234,8 +246,8 @@ sub term_create_attr{
 
 #    # print "#OOE OUTPUT1\n"; 
 #    # term_print(@output); 
-    
-    
+
+
 #    return %attr; 
 # }
 
