@@ -2,7 +2,7 @@ package Using_Ast_Check;
 use strict;
 use Switch; 
 use Exporter 'import';
-our @EXPORT = qw(declare_parameter check_ast params_to_string $erros); 
+our @EXPORT = qw(declare_parameter check_ast params_to_string ast_get_tuples value_ref_get_pname value_ref_get_value); 
 
 # Context check ast produced by Using.pm
 
@@ -67,28 +67,54 @@ sub check_ast_node{
     }
 }
 
+# Returns a string representation of a set of tuple.
 sub tuples_to_string{
     die if @_ != 1; 
     my $tuples = $_[0];
     my $string = ""; 
     $string.= "tuples: { ";
     foreach my $t (@$tuples){
-	$string.= "[ ";
-	foreach my $tt (@$t){
-	    $string.= parameter_value_ref_to_string(@$tt); 
-	}
-	$string.= "] ";
+	$string .= tuple_to_string($t); 
     }
     $string.= "}, ";
     return $string;
 }
 
+# Returns a string representation of a tuple. 
+sub tuple_to_string{
+    die if @_ != 1;
+    my $tuple = $_[0];
+    my $string = "";
+    $string.= "[ ";
+    foreach my $tt (@{$tuple}){
+	$string.= parameter_value_ref_to_string($tt); 
+    }
+    $string.= "] ";
+    return $string; 
+}
+
 
 # parameter value refs are arrays <parameter name, index in the value space>
 sub parameter_value_ref_to_string{
-    die if @_ != 2; 
-    return "<$_[0]:$_[1]> "; 
+    die if @_ != 1; 
+    my @vr = @{$_[0]}; 
+    return "<$vr[0]:$vr[1]> "; 
 }
+
+# Returns parameter name of value reference. 
+sub value_ref_get_pname{
+    die if @_ != 1;
+    my $vr = $_[0]; 
+    return $vr->[0];
+}
+
+# Returns the value associated with a value ref. 
+sub value_ref_get_value{
+    die if @_ != 1;
+    my $vr = $_[0]; 
+    return $params{$vr->[0]}->[$vr->[1]]; 
+}
+
 
 # check parameter node. 
 sub check_parameter_node{
@@ -168,6 +194,8 @@ sub check_eq_operator_node{
     }
 }
 
+# Get the array of tuples associated with the root of the
+# ast. (I.e. all the tuples.)
 sub ast_get_tuples{
     die if @_ != 1;
     my ($ast) = @_; 

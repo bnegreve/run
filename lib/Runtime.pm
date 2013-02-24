@@ -7,9 +7,7 @@ use warnings;
 require Exporter;
 
 our @ISA = qw(Exporter);
-our @EXPORT = qw(
-startup
-);
+our @EXPORT = qw(startup);
 
 our $VERSION = '0.01';
 
@@ -20,8 +18,12 @@ use Using;
 use Proc::ProcessTable;
 
 use Using;
+use Using_Ast_Check;
 
-use vars qw(%parameter_value_space); 
+use vars qw(%parameter_value_space);
+
+our $using_ast; 
+
 my $timeout = -1; #In sec, -1 is unlimited
 my $mem_usage_cap = -1; #In kiB -1 is unlimited
 my $total_memory; 
@@ -55,6 +57,21 @@ my @progtotest_command_lines;
 my @parameter_index_order; 
 my %parameter_values; # bind parameter actual values to indices. 
 
+our $errors = 0; 
+
+sub error_args{
+    die if @_ != 1; 
+    print STDERR 'Error while parsing Runtime arguments: '.$_[0]."\n"; 
+    $errors++;
+    print_usage();
+    exit(1); 
+}
+
+sub warning_build_command_line{
+    die if @_ != 1; 
+    print STDERR 'Warning while building command line: '.$_[0]."\n"; 
+    $errors++;
+}
 
 sub md5_file{
     my $file = $_[0];
@@ -802,21 +819,25 @@ sub parse_program_arguments{
 	    if($1 eq 'p'){
 		# parse a param argument
 		# creates a param entry with a list of values for this param
-		if(defined(my $param = shift @argv)){
-		    if(not $param =~ /[a-zA-Z_][a-zA-Z_0-9]*/){
-			print STDERR "Error: Unexpected parameter name \'$param\'.\n";
-			print_usage($run_script_name); 
+		if(defined(my $p_name = shift @argv)){
+		    if(not $p_name =~ /[a-zA-Z_][a-zA-Z_0-9]*/){
+			error_args "Parameter '$p_name' is not a valid parameter name (parameter names must match [a-zA-Z_][a-zA-Z_0-9]*.";
 		    }
 		    
-		    $params{$param} = ();
+		    my @values = (); 
 		    while(defined (my $n = shift @argv)){
 			if($n =~ /^-/){
 			    unshift @argv, $n; 
 			    last; 
 			}
-			push @{$params{$param}}, $n; 
+			push @values, $n; 
 		    }
-		    print_usage($run_script_name) if (@{$params{$param}} == 0); 
+		    if(@values == 0){
+			declare_parameter($p_name, \@values); 
+		    }
+		    else{
+			error_args "Parameter value space for parameter '$p_name' is empty.";
+		    }
 		}
 		else{
 		    print_usage($run_script_name); 
@@ -828,12 +849,11 @@ sub parse_program_arguments{
 	    ###############
 	    elsif($1 eq 'u'){
 		if(defined(my $param = shift @argv)){
-		    Using::init_parser(); 
 		    foreach my $param_name (keys %params){
-			add_parameter_values($param_name, $params{$param_name}); 
+			declare_parameter($param_name, $params{$param_name}); 
 		    }
 
-		    %main::parameter_value_space = Using::parse($param);
+		    $using_ast = Using::parse($param);
 		}
 		else{
 		    print_usage($run_script_name);
@@ -907,10 +927,40 @@ sub parse_program_arguments{
     }
 }
 
+
+# Build a command line from the command line template and a tuple of
+# value references.
+#
+# Iterate through the template and replace occurrences of PNAME with
+# value refered by the first value reference <PNAME, value_index>.
+# Warning: If the same PNAME occurs multiple times, each occurrence is
+# only replaced once for each value reference (left-most occurrences
+# are replaced first.)
+sub build_a_command_line{
+    die if @_ != 2; 
+    my $template = $_[0];
+    my @tuple = @{$_[1]}; 
+
+    foreach my $vr(@tuple){
+	my $pname = value_ref_get_pname($vr);
+	my $value = value_ref_get_value($vr);
+
+	if(not ($template =~ s/$pname/$value/)){
+	    warning_build_command_line
+		"Parameter '$pname' not found in command line template."; 
+	}
+    }
+    return $template;     
+}
+
 sub startup{
     my @argv = @_; 
     init(); 
     parse_program_arguments(\@argv);
+
+    print ast_to_string($using_ast);
+    check_ast($using_ast);
+    print ast_to_string($using_ast);
     populate_output_dir($output_dir); 
 
     check_progtotest_command_template(); 
