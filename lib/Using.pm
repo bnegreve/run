@@ -114,7 +114,7 @@ sub ast_create_parameter_node{
 sub ast_create_eq_operator_node{
     die if @_ != 2;
     my ($left, $right) = @_;
-    return {type => "eq_operator", left => $left, right => $right}; 
+    return {type => "eq_operator", left => $left, right => $right, value => {}}; 
 }
 
 # Create and return a node for the prod operator. The node is a hashmap
@@ -124,25 +124,20 @@ sub ast_create_eq_operator_node{
 sub ast_create_prod_operator_node{
     die if @_ != 2;
     my ($left, $right) = @_;
-    return {type => "prod_operator", left => $left, right => $right}; 
+    return {type => "prod_operator", left => $left, right => $right, value => {}}; 
 }
 
-# If node is a terminal append decor to decor string, if node isn't a
-# terminal append decor to every node of the subtree with a value field.. 
+#  Append decor. 
 sub ast_append_decor{
     die if @_ != 2;
-    my %ast = %{$_[0]};
+    my $ast = $_[0];
     my $decor = $_[1]; 
 
-    if ( defined($ast{value}) ){
-	$ast{value}{decor_string} .= $decor; 
+    if (not (defined($ast->{value}->{decor_string}))){
+	$ast->{value}->{decor_string} = "$decor";
     }
-
-    if ( defined($ast{left}) ){
-	ast_append_decor($ast{left}, $decor);
-    }
-    if ( defined($ast{right}) ){
-	ast_append_decor($ast{right}, $decor);
+    else{
+	$ast->{value}->{decor_string} .= $decor;
     }
 }
 

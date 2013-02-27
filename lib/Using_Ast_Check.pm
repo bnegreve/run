@@ -2,7 +2,7 @@ package Using_Ast_Check;
 use strict;
 use Switch; 
 use Exporter 'import';
-our @EXPORT = qw(declare_parameter check_ast params_to_string ast_get_tuples value_ref_get_pname value_ref_get_value); 
+our @EXPORT = qw(declare_parameter check_ast params_to_string ast_get_tuples value_ref_get_pname value_ref_get_value  ast_get_dimension_indexes); 
 
 # Context check ast produced by Using.pm
 
@@ -48,7 +48,8 @@ sub declare_parameter{
 # Check abstract syntax tree. 
 sub check_ast{
     die if @_ != 1;
-    check_ast_node($_[0]); 
+    check_ast_node($_[0]);
+    build_format_specification($_[0], ""); 
 }
 
 # Check abstract syntax tree, helper function.  
@@ -60,11 +61,55 @@ sub check_ast_node{
 	check_ast_node($ast_node->{left});
 	check_ast_node($ast_node->{right}); 
     }
-
+    
     switch ($ast_node->{type}){
 	case /parameter/ {check_parameter_node($ast_node)};
 	case /.*_operator/ { check_binary_operator_node($ast_node)}
     }
+}
+
+# Build a format specification which is a string of same size as
+# tuples with c or l or f for each element of the tuples.  This will
+# later be used to build the file name, the line specification and the
+# column specification from a given tuple. 
+sub build_format_specification{
+    die if @_ != 2; 
+    my ($ast_node, $parent_spec) = @_;
+    my $value = $ast_node->{value};
+
+    if(defined $parent_spec
+       and (defined $value->{decor_string})
+       and ($value->{decor_string} eq "")){
+	$value->{decor_string} = $parent_spec; 
+    }
+    
+    if (defined $ast_node->{left}){
+	build_format_specification($ast_node->{left}, $value->{decor_string});
+	build_format_specification($ast_node->{right}, $value->{decor_string});
+
+	$value->{decor_string} = ""
+	    .$ast_node->{left}->{value}->{decor_string}
+	.$ast_node->{right}->{value}->{decor_string};
+	    } else{
+		# we are on a terminal node
+	    }
+}
+
+# Return an array containing the index (in the tuples) of all the
+# parameters with a given dimension string.
+sub ast_get_dimension_indexes{
+    die if @_ != 2; 
+    my ($ast, $dim_string) = @_; 
+
+    my $format_spec = $ast->{value}->{decor_string};
+    
+    my @dims = ();
+    for(my $i = 0; $i <= length $format_spec; $i++){
+	if( (substr ($format_spec, $i, 1)) eq $dim_string){
+	    push @dims, $i;
+	}
+    }
+    return @dims; 
 }
 
 # Returns a string representation of a set of tuple.
@@ -73,7 +118,7 @@ sub tuples_to_string{
     my $tuples = $_[0];
     my $string = ""; 
     $string.= "tuples: { ";
-    foreach my $t (@$tuples){
+    foreach my $t (@{$tuples}){
 	$string .= tuple_to_string($t); 
     }
     $string.= "}, ";
@@ -115,8 +160,7 @@ sub value_ref_get_value{
     return $params{$vr->[0]}->[$vr->[1]]; 
 }
 
-
-# check parameter node. 
+# Check parameter node. 
 sub check_parameter_node{
     die if @_ != 1;
     my $ast_node = $_[0];
@@ -158,7 +202,7 @@ sub check_prod_operator_node{
     die if @_ != 3;
     my ($node, $left, $right) = @_;
 
-    $node->{value} = {tuples => []};
+    $node->{value}->{tuples} = [];
     my $left_tuples = $left->{value}->{tuples};
     my $right_tuples = $right->{value}->{tuples};
 
@@ -187,7 +231,7 @@ sub check_eq_operator_node{
  the same size. Left operand size: $s1, right operand size: $s2.";
     }
 
-    $node->{value} = {tuples => []};
+    $node->{value}->{tuples} = [];
     for my $i (0..$#{$left_tuples}){
 	push $node->{value}->{tuples},
 	[@{$left_tuples->[$i]}, @{$right_tuples->[$i]}];

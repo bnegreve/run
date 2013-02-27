@@ -23,6 +23,7 @@ use Using_Ast_Check;
 use vars qw(%parameter_value_space);
 
 our $using_ast; 
+our %result_db = ();
 
 my $timeout = -1; #In sec, -1 is unlimited
 my $mem_usage_cap = -1; #In kiB -1 is unlimited
@@ -44,7 +45,6 @@ my @runs =();
 
 
 my $output_dir;
-my $run_script_name = $0; 
 
 my $post_exec_script_path; 
 my $max_mem_usage = 0; 
@@ -58,18 +58,20 @@ my @parameter_index_order;
 my %parameter_values; # bind parameter actual values to indices. 
 
 our $errors = 0; 
+our $runtime_bin_path = $0; 
 
 sub error_args{
     die if @_ != 1; 
     print STDERR 'Error while parsing Runtime arguments: '.$_[0]."\n"; 
     $errors++;
+    print "\n"; 
     print_usage();
     exit(1); 
 }
 
 sub warning_build_command_line{
     die if @_ != 1; 
-    print STDERR 'Warning while building command line: '.$_[0]."\n"; 
+    print STDERR 'Warning while building command line: '.$_[0]."\n";
     $errors++;
 }
 
@@ -186,9 +188,8 @@ sub run_child{
 
 
 sub print_usage{
-    die if @_ != 1; 
-    my ($bin_name) = @_; 
-    print STDERR "Usage: $bin_name -p PARAMETER_NAME parameter_value_1 .. parameter_value_n\
+    die if @_ != 0; 
+    print STDERR "Usage: $runtime_bin_path -p PARAMETER_NAME parameter_value_1 .. parameter_value_n\
  [-p PARAMETER2_NAME parameter2_value_1 .. parameter2_value_n]\
  [-s post_output_script] [-m max_memory_usage (% total)] [ -t timeout value]\
  -u using_expression -- command_line_template\n";
@@ -832,15 +833,15 @@ sub parse_program_arguments{
 			}
 			push @values, $n; 
 		    }
-		    if(@values == 0){
-			declare_parameter($p_name, \@values); 
+		    if(@values != 0){
+			declare_parameter($p_name, @values); 
 		    }
 		    else{
-			error_args "Parameter value space for parameter '$p_name' is empty.";
+			error_args "No value provided for parameter '$p_name'.";
 		    }
 		}
 		else{
-		    print_usage($run_script_name); 
+		    print_usage(); 
 		}
 	    }
 
@@ -856,7 +857,7 @@ sub parse_program_arguments{
 		    $using_ast = Using::parse($param);
 		}
 		else{
-		    print_usage($run_script_name);
+		    print_usage();
 		}
 	    }
 
@@ -870,7 +871,7 @@ sub parse_program_arguments{
 			print STDERR "Warning: timout value ($timeout sec) is below timeout resolution ($CYCLE_LEN sec).\n"; }
 		}
 		else{
-		    print_usage($run_script_name); 
+		    print_usage; 
 		}
 	    }
 
@@ -882,7 +883,7 @@ sub parse_program_arguments{
 		    $mem_usage_cap = $param * $total_memory / 100; 
 		}
 		else{
-		    print_usage($run_script_name); 
+		    print_usage; 
 		}
 	    }
 
@@ -896,7 +897,7 @@ sub parse_program_arguments{
 
 		}
 		else{
-		    print_usage($run_script_name); 
+		    print_usage; 
 		}
 	    }
 
@@ -908,18 +909,18 @@ sub parse_program_arguments{
 		    $output_dir = $param.'/';
 		}
 		else{
-		    print_usage($run_script_name); 
+		    print_usage;
 		}
 	    }
 	    
 	    elsif($1 eq '-'){
-		if(@argv == 0) {print_usage($run_script_name); die "Cannot parse command line\n";}
+		if(@argv == 0) {print_usage; die "Cannot parse command line\n";}
 		
 		$progtotest_command_template = join(' ',@argv);
 		@argv=(); 
 	    }
 	    else{
-		print_usage($run_script_name); 
+		print_usage;
 		die; 
 	    }
 
@@ -953,29 +954,93 @@ sub build_a_command_line{
     return $template;     
 }
 
+# Convert a tuple into a filename
+sub tuple_to_filename{
+    die if @_ != 1; 
+    my ($tuple) = @_;
+    my $string = "";
+    my @file_dims = ast_get_dimension_indexes($using_ast, "f");
+    my @cols_dims = ast_get_dimension_indexes($using_ast, "l");
+    my @line_dims = ast_get_dimension_indexes($using_ast, "c"); 
+    my $total = @file_dims + @cols_dims + @line_dims; 
+
+    my $i = 0; 
+
+    foreach my $d (@file_dims){
+	my $vr = $tuple->[$d]; 
+	$string .= value_ref_get_pname($vr);
+	$string .= '.'.value_ref_get_value($vr);
+	if(++$i != $total){
+	    $string .= '_';
+	}
+    }
+    foreach my $d (@cols_dims){
+	my $vr = $tuple->[$d]; 
+	$string .= value_ref_get_pname($vr);
+	if(++$i != $total){
+	    $string .= '_';
+	}
+    }
+    foreach my $d (@line_dims){
+	my $vr = $tuple->[$d]; 
+	$string .= value_ref_get_pname($vr);
+	if(++$i != $total){
+	    $string .= '_';
+	}
+    }
+    return $string; 
+}
+
+# Store a result in a structed db. 
+sub store_result{
+    die if @_ != 3;
+    my ($tag, $tuple, $result_string) = @_; 
+
+    # my $dimension1 = Using_Ast_Check::project_tuple($using_ast, $t, "c"));
+    # my $dimension2 = Using_Ast_Check::project_tuple($using_ast, $t, "l"));
+    # my $dimension3 = Using_Ast_Check::project_tuple($using_ast, $t, "f"));
+    print "storing in ".tuple_to_filename($tuple); 
+}
+
+
+
 sub startup{
     my @argv = @_; 
     init(); 
     parse_program_arguments(\@argv);
 
-    print ast_to_string($using_ast);
+#    print ast_to_string($using_ast);
     check_ast($using_ast);
     print ast_to_string($using_ast);
     populate_output_dir($output_dir); 
 
-    check_progtotest_command_template(); 
-    build_progtotest_command_lines();
-    print "\n";
-    print_info();
+    my @tuples = @{ast_get_tuples($using_ast)};
+    my @command_lines = (); 
+    foreach my $t (@tuples){
+	print Using_Ast_Check::tuple_to_string($t);
+# 	print "storing in ".tuple_to_filename($t); 
+	store_result("mem", $t, 0); 
+	push @command_lines, build_a_command_line($progtotest_command_template, $t);
+    }
+    
+    foreach my $c  (@command_lines){
+	print "<<$c>>\n"; 
+    }
 
-    create_readme_file(@argv); 
-    run_command_lines(); 
+    # check_progtotest_command_template(); 
+    # build_progtotest_command_lines();
+    
+    # print "\n";
+    # print_info();
 
-    finalize_readme_file(); 
-    print "END: ".date_string."\n";
-    print "Results are in: ".$output_dir."\n";
-    system ("rm -f last_xp"); 
-    system ("ln -s  $output_dir last_xp"); 
+     create_readme_file(@argv); 
+     run_command_lines(); 
+
+    # finalize_readme_file(); 
+    # print "END: ".date_string."\n";
+    # print "Results are in: ".$output_dir."\n";
+    # system ("rm -f last_xp"); 
+    # system ("ln -s  $output_dir last_xp"); 
 }
 
 1;
@@ -992,6 +1057,35 @@ runtime - Perl extension for blah blah blah
   blah blah blah
 
 =head1 DESCRIPTION
+
+Runtime can be used to measure and plot statistics such as time or
+memory usage on programs with a (possibly large) number of parameters.
+
+For example the following command:
+
+ $> runtime -p P1 a1 a2 -p P2 b1 b2 b3 -u P1cxP2l -- echo P1 P2
+
+will 
+1. Run the following commands 
+
+echo a1 b1
+echo a1 b2
+echo a1 b3
+echo a2 b1
+echo a2 b2
+echo a2 b3
+
+2. Collect time statistics and store them into file. 
+One value per column for P1, one value per line for P2.
+
+
+Essentially Runtime is a tool to map points in a high dimensional
+space (the space of parameters) onto the three dimensional space that
+consists in columns, lines, and files.
+
+
+
+
 
 Stub documentation for runtime, created by h2xs. It looks like the
 author of the extension was negligent enough to leave the stub
@@ -1030,3 +1124,13 @@ at your option, any later version of Perl 5 you may have available.
 
 
 =cut
+
+
+
+
+
+
+
+
+
+
