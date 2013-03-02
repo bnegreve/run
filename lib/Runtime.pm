@@ -1068,17 +1068,23 @@ sub startup{
     check_ast($using_ast);
     print ast_to_string($using_ast);
     populate_output_dir($output_dir);
-    result_db_init($output_dir);
+
+    my $time_db = new Result_Db($output_dir, "time");
+    my $mem_db = new Result_Db($output_dir, "mem"); 
     
     my @tuples = @{ast_get_tuples($using_ast)};
 
     my @command_lines = (); 
 
+
+
     foreach my $t (@tuples){
-	result_db_add_tuple($t);
+	$time_db->result_db_add_tuple($t);
+	$mem_db->result_db_add_tuple($t);
 	my $cl = build_a_command_line($progtotest_command_template, $t);
 	my ($time, $mem, $pes_output) =  run_child($cl);
-	result_db_set_result($t, $time);
+	$time_db->result_db_set_result($t, $time);
+	$mem_db->result_db_set_result($t, $mem);
     }
     
     # foreach my $c  (@command_lines){
