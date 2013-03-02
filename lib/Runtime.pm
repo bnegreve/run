@@ -1,7 +1,7 @@
 package Runtime;
 
 use 5.014002;
-use strict;
+#use strict;
 use warnings;
 
 require Exporter;
@@ -12,9 +12,6 @@ our @EXPORT = qw(startup);
 our $VERSION = '0.01';
 
 
-use FindBin;  #thanks cjm
-use lib "$FindBin::Bin/";
-use Using;
 use Proc::ProcessTable;
 
 use Using;
@@ -954,14 +951,38 @@ sub build_a_command_line{
     return $template;     
 }
 
+
+# Build a dimension name from a tuple and a dimension specification
+# (i.e. f c or l).  
+#
+# e.g. tuple_build_dim_name([ <A:1> <B:2> <C:1> <D:2> ], 'l') will
+# return the string "C.1_D.2" if the dimension specification is "fcll" 
+# (file column line line)
+sub tuple_build_dim_name{
+    die if @_ != 2; 
+    my ($tuple, $dim_name) = @_;
+    my $string = "";
+    my @dims_index = ast_get_dimension_indexes($using_ast, $dim_name);
+
+    my $i = 0; 
+    foreach my $vr_index(@dims_index){
+	$string .= value_ref_get_pname($tuple->[$vr_index]).".".value_ref_get_value($tuple->[$vr_index]);
+	if(++$i != @dims_index){
+	    $string .= '_';     
+	}
+    }
+    return $string; 
+}
+
+
 # Convert a tuple into a filename
 sub tuple_to_filename{
     die if @_ != 1; 
     my ($tuple) = @_;
     my $string = "";
     my @file_dims = ast_get_dimension_indexes($using_ast, "f");
-    my @cols_dims = ast_get_dimension_indexes($using_ast, "l");
-    my @line_dims = ast_get_dimension_indexes($using_ast, "c"); 
+    my @cols_dims = ast_get_dimension_indexes($using_ast, "c");
+    my @line_dims = ast_get_dimension_indexes($using_ast, "l"); 
     my $total = @file_dims + @cols_dims + @line_dims; 
 
     my $i = 0; 
@@ -996,19 +1017,54 @@ sub store_result{
     die if @_ != 3;
     my ($tag, $tuple, $result_string) = @_; 
 
-    # my $dimension1 = Using_Ast_Check::project_tuple($using_ast, $t, "c"));
-    # my $dimension2 = Using_Ast_Check::project_tuple($using_ast, $t, "l"));
-    # my $dimension3 = Using_Ast_Check::project_tuple($using_ast, $t, "f"));
-    print "storing in ".tuple_to_filename($tuple); 
+    result_db_insert_value(tuple_to_filename($tuple), tuple_build_dim_name($tuple, 'c'),
+			   tuple_build_dim_name($tuple, 'l'), $result_string);
 }
 
+# add a value in the result db
+sub result_db_insert_value{
+    die if @_ != 4; 
+    my ($filename_id, $column_id, $line_id, $value_string) = @_; 
 
+    if(not defined $result_db{$filename_id}){
+	$result_db{$filename_id} = {data => {}, dirty => 1};
+    }
+
+    $result_db{$filename_id}{dirty} = 1;
+    # if(not defined $result_db{$filename_id}{data}{$column_id}{$line_id}){
+    # 	$result_db{$filename_id}{data}{$column_id}{$line_id} = (); 
+    # }
+
+    $result_db{$filename_id}{data}{$line_id}{$column_id} = $value_string; 
+}
+
+sub print_result_db{
+    foreach my $f (keys %result_db){
+	print "FILE: $f\n#";
+	foreach my $c (keys $result_db{$f}{data}){
+	    foreach my $l (keys $result_db{$f}{data}{$c}){
+		print "$l"; 
+	    }
+	    print "\t"; 
+	}
+	print "\n"; 
+	foreach my $c (keys $result_db{$f}{data}){
+	    foreach my $l (keys $result_db{$f}{data}{$c}){
+	    }
+	    print "$c\t";
+	    foreach my $l (keys $result_db{$f}{data}{$c}){
+		print $result_db{$f}{data}{$c}{$l}."\t";
+	    }
+	    print "\n"; 
+	}
+	print "\n\n"; 
+    }
+}
 
 sub startup{
     my @argv = @_; 
     init(); 
     parse_program_arguments(\@argv);
-
 #    print ast_to_string($using_ast);
     check_ast($using_ast);
     print ast_to_string($using_ast);
@@ -1017,16 +1073,19 @@ sub startup{
     my @tuples = @{ast_get_tuples($using_ast)};
     my @command_lines = (); 
     foreach my $t (@tuples){
-	print Using_Ast_Check::tuple_to_string($t);
+#	print Using_Ast_Check::tuple_to_string($t);
 # 	print "storing in ".tuple_to_filename($t); 
-	store_result("mem", $t, 0); 
+	store_result("mem", $t, Using_Ast_Check::tuple_to_string($t));
 	push @command_lines, build_a_command_line($progtotest_command_template, $t);
     }
+    print_result_db;
+	    
     
-    foreach my $c  (@command_lines){
-	print "<<$c>>\n"; 
-    }
-
+    # foreach my $c  (@command_lines){
+    # 	print "<<$c>>\n"; 
+    # }
+    
+    return 1; 
     # check_progtotest_command_template(); 
     # build_progtotest_command_lines();
     
