@@ -6,7 +6,16 @@ our @EXPORT = qw(declare_parameter check_ast params_to_string ast_get_tuples val
 
 # Context check ast produced by Using.pm
 
-our %params = (); 
+# all the parameter names with their value space
+our %params = ();
+
+# binds parameter names with format specifications (f, c, l)
+our %params_format_spec = ();
+
+# binds parameter names with indexes that are assigned w.r.t. a unique
+# order (lexicographical order over parameter names).
+our %params_std_order = ();
+
 our $errors = 0; 
 
 # Prints the list of declared parameters and their value space. 
@@ -48,51 +57,11 @@ sub declare_parameter{
 # Check abstract syntax tree. 
 sub check_ast{
     die if @_ != 1;
-    check_ast_node($_[0]);
-    build_format_specification($_[0], ""); 
-}
-
-# Check abstract syntax tree, helper function.  
-sub check_ast_node{
-    die if @_ != 1; 
-    my $ast_node = $_[0];
-
-    if(defined $ast_node->{left}){
-	check_ast_node($ast_node->{left});
-	check_ast_node($ast_node->{right}); 
-    }
-    
-    switch ($ast_node->{type}){
-	case /parameter/ {check_parameter_node($ast_node)};
-	case /.*_operator/ { check_binary_operator_node($ast_node)}
-    }
-}
-
-# Build a format specification which is a string of same size as
-# tuples with c or l or f for each element of the tuples.  This will
-# later be used to build the file name, the line specification and the
-# column specification from a given tuple. 
-sub build_format_specification{
-    die if @_ != 2; 
-    my ($ast_node, $parent_spec) = @_;
-    my $value = $ast_node->{value};
-
-    if(defined $parent_spec
-       and (defined $value->{decor_string})
-       and ($value->{decor_string} eq "")){
-	$value->{decor_string} = $parent_spec; 
-    }
-    
-    if (defined $ast_node->{left}){
-	build_format_specification($ast_node->{left}, $value->{decor_string});
-	build_format_specification($ast_node->{right}, $value->{decor_string});
-
-	$value->{decor_string} = ""
-	    .$ast_node->{left}->{value}->{decor_string}
-	.$ast_node->{right}->{value}->{decor_string};
-	    } else{
-		# we are on a terminal node
-	    }
+    my ($ast_node) = @_; 
+    check_ast_node($ast_node);
+    my @all_parameters = build_format_specification($ast_node, "");
+    assign_format_spec($ast_node->{value}->{decor_string}, \@all_parameters); 
+    compute_std_parameter_order(); 
 }
 
 # Return an array containing the index (in the tuples) of all the
@@ -242,8 +211,119 @@ sub check_eq_operator_node{
 # ast. (I.e. all the tuples.)
 sub ast_get_tuples{
     die if @_ != 1;
-    my ($ast) = @_; 
-    return $ast->{value}->{tuples}; 
+    my ($ast) = @_;
+    my @all_tuples = (); 
+    foreach my $tuple (@{$ast->{value}->{tuples}}){
+	push @all_tuples, tuple_in_std_order($tuple); 
+    }
+    return \@all_tuples; 
+}
+
+# Given a tuple, returns the same tuple sorted with respect to the std
+# tuple ordering defined by
+sub tuple_in_std_order{
+    die if @_ != 1; 
+    my ($tuple) = @_;
+    # FIXME replace by inplace sort 
+    my @ordered_tuple = (); 
+    foreach my $vr (@{$tuple}){
+	my $pname = value_ref_get_pname($vr);
+	$ordered_tuple[$params_std_order{$pname}] = $vr; 
+    }
+    return \@ordered_tuple; 
+}
+
+
+# Check abstract syntax tree, helper function.  
+sub check_ast_node{
+    die if @_ != 1; 
+    my $ast_node = $_[0];
+
+    if(defined $ast_node->{left}){
+	check_ast_node($ast_node->{left});
+	check_ast_node($ast_node->{right}); 
+    }
+    
+    switch ($ast_node->{type}){
+	case /parameter/ {check_parameter_node($ast_node)};
+	case /.*_operator/ { check_binary_operator_node($ast_node)}
+    }
+}
+
+# Recursive function that interates through the ast and builds the
+# parameter format specification string.  This string string contains
+# one char per parameter for each parameter how results will ultimatly
+# be stored in the file. The ith char corresponds to the ith parameter
+# w.r.t. the parameter order in the using expression. A 'f' char means
+# one value per file for this parameter, a 'c' means one value per
+# column in the file and a 'l' well, one value per line.
+#
+# This function is also in charge of assigning a format spec for a
+# parameter when no format is provided or when multiple format
+# specification are provided for the same parameter. 
+# 
+sub build_format_specification{
+    die if @_ != 2; 
+    my ($ast_node, $parent_spec) = @_;
+    my $value = $ast_node->{value};
+
+    if(defined $parent_spec
+       and (defined $value->{decor_string})
+       and ($value->{decor_string} eq "")){
+	$value->{decor_string} = $parent_spec; 
+    }
+    
+    if (defined $ast_node->{left}){
+	my @left_child_parameters = 
+	build_format_specification($ast_node->{left}, $value->{decor_string});
+	my @right_child_parameters = 
+	build_format_specification($ast_node->{right}, $value->{decor_string});
+
+	$value->{decor_string} = ""
+	    .$ast_node->{left}->{value}->{decor_string}
+	.$ast_node->{right}->{value}->{decor_string};
+
+	return (@left_child_parameters, @right_child_parameters); 
+    } else{
+	# we are on a terminal node
+	my @child_parameters; 
+	push @child_parameters, $ast_node->{value}->{name};
+	return @child_parameters; 
+    }
+
+
+}
+
+# Compute lexicographical order for parameters and store parameter index
+# (w.r.t. lex order on parameter names) in $params_std_order{name}; 
+sub compute_std_parameter_order{
+    die if @_ != 0;
+    my @sorted = sort keys %params;
+    my $i = 0; 
+    foreach my $p_name (@sorted){
+	$params_std_order{$p_name} = $i++; 
+    }
+}
+
+# Assign format spec to parameter names using the format specification
+# string at the root of the ast.  Essentially 'parse' the string which
+# describes the parameter format specification in the same order as
+# parameters occurs in the using expression and reassign it to
+# parameters names thanks to the %parameters_format_spec hash.
+sub assign_format_spec{
+    die if @_ != 2; 
+    my ($format_spec_string, $all_parameters) = @_;
+    for(my $i = 0; $i < length $format_spec_string; $i++){
+	my $format_char = substr $format_spec_string, $i, 1;
+	$params_format_spec{$all_parameters->[$i]} = $format_char; 
+    }
+}
+
+sub parameter_get_format_spec{
+    die if @_ != 0; 
+    my ($pname) = @_;
+    die unless defined $params_format_spec{$pname}; 
+    return $params_format_spec{$pname};
 }
 
 sub guess_format_specification{

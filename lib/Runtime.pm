@@ -1071,6 +1071,8 @@ sub startup{
     populate_output_dir($output_dir); 
 
     my @tuples = @{ast_get_tuples($using_ast)};
+
+    print Using_Ast_Check::tuples_to_string(\@tuples); 
     my @command_lines = (); 
     foreach my $t (@tuples){
 #	print Using_Ast_Check::tuple_to_string($t);
