@@ -231,7 +231,7 @@ END
 }
 
 
-# Print system info and so on. 
+# Print system info. 
 sub print_info(){
     die if @_ != 0;
 
@@ -768,13 +768,7 @@ sub create_readme_file{
 
     print README "\n###########################\n";
     print README "Experiment started at $START_TIME on ".get_hostname().".\n";
-    print README "$0 ".join(' ',@argv);
-
-    print README "\n\n\n"; 
-    foreach my $cl (@progtotest_command_lines){
-	print README "$cl\n"; 
-    }    
-    print README "\n"; 
+    print README "$0 ".join(' ',@argv)."\n";
     close README; 
  }
 
@@ -782,6 +776,12 @@ sub finalize_readme_file{
     die if @_ != 0;
     open README, ">>$output_dir/README" or die $!;
     open READMETMP, "$output_dir/README.tmp" or die $!;
+    print README "\n\n"; 
+    foreach my $cl (@progtotest_command_lines){
+	print README "$cl\n"; 
+    }    
+    print README "\n"; 
+
     while (my $line = <READMETMP>){
 	print README $line; 
     }
@@ -1066,7 +1066,7 @@ sub startup{
     parse_program_arguments(\@argv);
 #    print ast_to_string($using_ast);
     check_ast($using_ast);
-    print ast_to_string($using_ast);
+    #print ast_to_string($using_ast);
     populate_output_dir($output_dir);
 
     my $time_db = new Result_Db($output_dir, "time");
@@ -1074,31 +1074,38 @@ sub startup{
     
     my @tuples = @{ast_get_tuples($using_ast)};
 
-    my @command_lines = (); 
-
-
-
     foreach my $t (@tuples){
 	$time_db->result_db_add_tuple($t);
 	$mem_db->result_db_add_tuple($t);
+
+    }
+    
+    print_info();
+    create_readme_file(@argv); 
+    print "\nEverything seems to be OK. Now starting experiments.\n\n";
+
+    foreach my $t (@tuples){
 	my $cl = build_a_command_line($progtotest_command_template, $t);
+	push @progtotest_command_lines, $cl;
 	my ($time, $mem, $pes_output) =  run_child($cl);
 	$time_db->result_db_set_result($t, $time);
 	$mem_db->result_db_set_result($t, $mem);
     }
+
+
+
     
-    # foreach my $c  (@command_lines){
-    # 	print "<<$c>>\n"; 
-    # }
+
+
     
     return 1; 
     # check_progtotest_command_template(); 
     # build_progtotest_command_lines();
     
     # print "\n";
-    # print_info();
 
-     create_readme_file(@argv); 
+
+
      run_command_lines(); 
 
     # finalize_readme_file(); 
@@ -1189,8 +1196,6 @@ at your option, any later version of Perl 5 you may have available.
 
 
 =cut
-
-
 
 
 
