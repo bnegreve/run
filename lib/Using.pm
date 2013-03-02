@@ -50,7 +50,7 @@ BEGIN{
 };
 
     $using_expression_parser = new Parse::RecDescent($grammar);
-    undef $/;
+#    undef $/;
 }
 
 # Build a string representing the abstract syntax tree for the

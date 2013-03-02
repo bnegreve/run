@@ -233,6 +233,11 @@ sub tuple_in_std_order{
     return \@ordered_tuple; 
 }
 
+# get all parameter names in std order ... yep!
+sub all_parameter_names_in_std_order{
+    return sort {$params_std_order{$a} <=> $params_std_order{$b}} keys %params_std_order; 
+}
+
 
 # Check abstract syntax tree, helper function.  
 sub check_ast_node{

@@ -1,7 +1,7 @@
 package Runtime;
 
 use 5.014002;
-#use strict;
+use strict;
 use warnings;
 
 require Exporter;
@@ -16,11 +16,10 @@ use Proc::ProcessTable;
 
 use Using;
 use Using_Ast_Check;
-
+use Result_Db;
 use vars qw(%parameter_value_space);
 
 our $using_ast; 
-our %result_db = ();
 
 my $timeout = -1; #In sec, -1 is unlimited
 my $mem_usage_cap = -1; #In kiB -1 is unlimited
@@ -1021,45 +1020,45 @@ sub store_result{
 			   tuple_build_dim_name($tuple, 'l'), $result_string);
 }
 
-# add a value in the result db
-sub result_db_insert_value{
-    die if @_ != 4; 
-    my ($filename_id, $column_id, $line_id, $value_string) = @_; 
+# # add a value in the result db
+# sub result_db_insert_value{
+#     die if @_ != 4; 
+#     my ($filename_id, $column_id, $line_id, $value_string) = @_; 
 
-    if(not defined $result_db{$filename_id}){
-	$result_db{$filename_id} = {data => {}, dirty => 1};
-    }
+#     if(not defined $result_db{$filename_id}){
+# 	$result_db{$filename_id} = {data => {}, dirty => 1};
+#     }
 
-    $result_db{$filename_id}{dirty} = 1;
-    # if(not defined $result_db{$filename_id}{data}{$column_id}{$line_id}){
-    # 	$result_db{$filename_id}{data}{$column_id}{$line_id} = (); 
-    # }
+#     $result_db{$filename_id}{dirty} = 1;
+#     # if(not defined $result_db{$filename_id}{data}{$column_id}{$line_id}){
+#     # 	$result_db{$filename_id}{data}{$column_id}{$line_id} = (); 
+#     # }
 
-    $result_db{$filename_id}{data}{$line_id}{$column_id} = $value_string; 
-}
+#     $result_db{$filename_id}{data}{$line_id}{$column_id} = $value_string; 
+# }
 
-sub print_result_db{
-    foreach my $f (keys %result_db){
-	print "FILE: $f\n#";
-	foreach my $c (keys $result_db{$f}{data}){
-	    foreach my $l (keys $result_db{$f}{data}{$c}){
-		print "$l"; 
-	    }
-	    print "\t"; 
-	}
-	print "\n"; 
-	foreach my $c (keys $result_db{$f}{data}){
-	    foreach my $l (keys $result_db{$f}{data}{$c}){
-	    }
-	    print "$c\t";
-	    foreach my $l (keys $result_db{$f}{data}{$c}){
-		print $result_db{$f}{data}{$c}{$l}."\t";
-	    }
-	    print "\n"; 
-	}
-	print "\n\n"; 
-    }
-}
+# sub print_result_db{
+#     foreach my $f (keys %result_db){
+# 	print "FILE: $f\n#";
+# 	foreach my $c (keys $result_db{$f}{data}){
+# 	    foreach my $l (keys $result_db{$f}{data}{$c}){
+# 		print "$l"; 
+# 	    }
+# 	    print "\t"; 
+# 	}
+# 	print "\n"; 
+# 	foreach my $c (keys $result_db{$f}{data}){
+# 	    foreach my $l (keys $result_db{$f}{data}{$c}){
+# 	    }
+# 	    print "$c\t";
+# 	    foreach my $l (keys $result_db{$f}{data}{$c}){
+# 		print $result_db{$f}{data}{$c}{$l}."\t";
+# 	    }
+# 	    print "\n"; 
+# 	}
+# 	print "\n\n"; 
+#     }
+# }
 
 sub startup{
     my @argv = @_; 
@@ -1068,20 +1067,19 @@ sub startup{
 #    print ast_to_string($using_ast);
     check_ast($using_ast);
     print ast_to_string($using_ast);
-    populate_output_dir($output_dir); 
-
+    populate_output_dir($output_dir);
+    result_db_init($output_dir);
+    
     my @tuples = @{ast_get_tuples($using_ast)};
 
-    print Using_Ast_Check::tuples_to_string(\@tuples); 
     my @command_lines = (); 
+
     foreach my $t (@tuples){
-#	print Using_Ast_Check::tuple_to_string($t);
-# 	print "storing in ".tuple_to_filename($t); 
-	store_result("mem", $t, Using_Ast_Check::tuple_to_string($t));
-	push @command_lines, build_a_command_line($progtotest_command_template, $t);
+	result_db_add_tuple($t);
+	my $cl = build_a_command_line($progtotest_command_template, $t);
+	my ($time, $mem, $pes_output) =  run_child($cl);
+	result_db_set_result($t, $time);
     }
-    print_result_db;
-	    
     
     # foreach my $c  (@command_lines){
     # 	print "<<$c>>\n"; 
