@@ -812,7 +812,7 @@ sub populate_output_dir{
     system("mkdir -p $output_dir/time"); 
     system("mkdir -p $output_dir/mem"); 
     system("mkdir -p $output_dir/output");
-    system("mkdir -p $output_dir/pes") if $post_exec_script_path; 
+    system("mkdir -p $output_dir/usr") if $post_exec_script_path; 
 }
 
 sub parse_program_arguments{
@@ -1244,10 +1244,11 @@ sub startup{
     foreach my $t (@tuples){
 	my $cl = build_a_command_line($progtotest_command_template, $t);
 	push @progtotest_command_lines, $cl;
-	my ($time, $mem, $pes_output) =  run_child($cl);
+	my ($time, $mem, $usr) =  run_child($cl);
 	$time_db->result_db_set_result($t, $time);
 	$mem_db->result_db_set_result($t, $mem);
-
+	$usr_db->result_db_set_result($t, $usr) if($post_exec_script_path);
+	
 	# writing results... after each run for more safety. 
 	write_result_files(\@tuples, $time_db,
 			   $output_dir.'time/time_', "Wall clock time (in seconds)");
@@ -1259,6 +1260,9 @@ sub startup{
 			       "Reporting: User script output");
 	}
     }
+
+# Finalize
+    finalize_readme_file(); 
 
 }
 
