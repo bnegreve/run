@@ -56,6 +56,8 @@ my %parameter_values; # bind parameter actual values to indices.
 our $errors = 0; 
 our $runtime_bin_path = $0; 
 
+
+
 sub error_args{
     die if @_ != 1; 
     print STDERR 'Error while parsing Runtime arguments: '.$_[0]."\n"; 
@@ -65,6 +67,13 @@ sub error_args{
     exit(1); 
 }
 
+
+sub warning_output{
+    die if @_ != 1; 
+    print STDERR 'Warning, while writing result files: '.$_[0].".\n"; 
+    $errors++;
+}
+
 sub warning_build_command_line{
     die if @_ != 1; 
     print STDERR 'Warning while building command line: '.$_[0]."\n";
@@ -72,12 +81,20 @@ sub warning_build_command_line{
 }
 
 sub md5_file{
+    die if @_ != 1; 
     my $file = $_[0];
     use Digest::MD5;
-    open(FILE, $file) or die "Can't open '$file': $!";
+    
+    my $md5; 
+    if(open(FILE, $file)){
     binmode(FILE);
-
-    return Digest::MD5->new->addfile(*FILE)->hexdigest;
+    $md5 = Digest::MD5->new->addfile(*FILE)->hexdigest;
+    }
+    else{
+	warning_output "Cannot compute binary md5 file for '$file': ".$!;
+	$md5 = "(Cannot compute md5 for file: '$file')"; 
+    }
+    return $md5; 
 }
 
 sub date_string{
@@ -202,9 +219,13 @@ sub get_hostname{
     my $hostname = hostname; 
     return $hostname; 
 }
+
+# print a description in the file handled by fh
+# bin is the binary file name executed
+# info reported is a string describing what is reported, e.g. time. 
 sub print_file_header{
-    die if @_ != 1; 
-    my ($bin) = @_; 
+    die if @_ != 3; 
+    my ($fh, $bin, $info_reported) = @_; 
     my $md5 = md5_file($bin); 
     my $hostname = get_hostname(); 
 
@@ -213,21 +234,12 @@ sub print_file_header{
 # Experiment started on: @{[date_string()]}. 
 # Machine hostname: $hostname.
 # Timout for each run $timeout s.  
-# Maximum memory usage allowed @{[$mem_usage_cap/1024]} MiB.;
+# Maximum memory usage allowed @{[$mem_usage_cap/1024]} MiB.
+#
+# Reporting: $info_reported.
 #
 END
-
-    print TIME $header_string;
-    print TIME "# Reporting: Wall clock time (in seconds).\n"; 
-
-    print MEM $header_string; 
-    print MEM  "# Reporting: Max memory usage (in MiB)"; 
-
-    if($post_exec_script_path){
-	print PES $header_string; 
-	print PES "# Reporting: User script output."
-
-    }
+    print $fh $header_string;
 }
 
 
@@ -1020,47 +1032,6 @@ sub store_result{
 			   tuple_build_dim_name($tuple, 'l'), $result_string);
 }
 
-# # add a value in the result db
-# sub result_db_insert_value{
-#     die if @_ != 4; 
-#     my ($filename_id, $column_id, $line_id, $value_string) = @_; 
-
-#     if(not defined $result_db{$filename_id}){
-# 	$result_db{$filename_id} = {data => {}, dirty => 1};
-#     }
-
-#     $result_db{$filename_id}{dirty} = 1;
-#     # if(not defined $result_db{$filename_id}{data}{$column_id}{$line_id}){
-#     # 	$result_db{$filename_id}{data}{$column_id}{$line_id} = (); 
-#     # }
-
-#     $result_db{$filename_id}{data}{$line_id}{$column_id} = $value_string; 
-# }
-
-# sub print_result_db{
-#     foreach my $f (keys %result_db){
-# 	print "FILE: $f\n#";
-# 	foreach my $c (keys $result_db{$f}{data}){
-# 	    foreach my $l (keys $result_db{$f}{data}{$c}){
-# 		print "$l"; 
-# 	    }
-# 	    print "\t"; 
-# 	}
-# 	print "\n"; 
-# 	foreach my $c (keys $result_db{$f}{data}){
-# 	    foreach my $l (keys $result_db{$f}{data}{$c}){
-# 	    }
-# 	    print "$c\t";
-# 	    foreach my $l (keys $result_db{$f}{data}{$c}){
-# 		print $result_db{$f}{data}{$c}{$l}."\t";
-# 	    }
-# 	    print "\n"; 
-# 	}
-# 	print "\n\n"; 
-#     }
-# }
-
-
 # Given a list of tuples and a tuple, return all the tuple that are
 # the in same equivalent class with respect to the format
 # specification two tuples are in the same class if all their
@@ -1171,6 +1142,12 @@ sub get_class_from_class_spec{
     return @class; 
 }
 
+
+# A class is a set of tuples that have the same value on a set of
+# parameter.  class type is either f c l, if class_type is f, the
+# function will return all the tuples that belong to the same file.
+# i.e. that have the same value on all the parameter with a f format
+# string.
 sub get_all_classes_from_class_type{
     die if @_ != 2; 
     my ($all_tuples, $class_type) = @_; 
@@ -1184,81 +1161,105 @@ sub get_all_classes_from_class_type{
     return \%class_hash; 
 }
 
-# Store the results in files/columns/lines according to the format
-# specified by the using expression.
-sub output_result_db{
-    die if @_ != 2; 
-    my ($result_db, $tuples) = @_;
+# Given a list of tuples that belong to the same file, print the values as lines
+# and columns according to the format specified by the using
+# expression.  $fh is a file handle to the file in which we want to
+# print.
+# Waring: all the tuples must belong to the same file.
+sub write_a_result_file{
+    die if @_ != 4; 
+    my ($result_db, $file_class_tuples, $file_prefix, $info_reported) = @_;
 
-    my $file_class_hash = get_all_classes_from_class_type($tuples, 'f'); 
-    foreach my $k (keys %{$file_class_hash}){
-	my $file_class_tuples = $file_class_hash->{$k};
-	my $col_class_hash = get_all_classes_from_class_type($file_class_tuples, 'l'); 
-	foreach my $c (keys %{$col_class_hash}){
-	    my $col_class_tuples = $col_class_hash->{$c};
-	    my $line_class_hash = get_all_classes_from_class_type($col_class_tuples, 'c'); 
-	    foreach my $l (keys %{$line_class_hash}){
-		my $line_class_tuples = $line_class_hash->{$l};
-		foreach my $v (@$line_class_tuples){
-#		    print "v".tuple_to_string($v).":"; 
-		    print $result_db->get_result($v);
-		}
-		print "\t"; 
-	    }
-	    print "end col\n"; 
-	}
-	print "endfile\n\n"; 
+    my $filename = $file_prefix.tuple_to_filename($file_class_tuples->[0]);
+    my $fh; 
+    if(not (open $fh, ">$filename")){
+	warning_output("Cannot create result file '$filename': $! Using stdout."); 
+	$fh = \*STDOUT; 
     }
-    
+
+    print_file_header($fh, "bin", $info_reported); 
+    my $col_class_hash = get_all_classes_from_class_type($file_class_tuples, 'l'); 
+    foreach my $c (keys %{$col_class_hash}){
+	my $col_class_tuples = $col_class_hash->{$c};
+	my $line_class_hash = get_all_classes_from_class_type($col_class_tuples, 'c'); 
+	foreach my $l (keys %{$line_class_hash}){
+	    my $line_class_tuples = $line_class_hash->{$l};
+	    foreach my $v (@$line_class_tuples){
+#		    print "v".tuple_to_string($v).":"; 
+		print {$fh} $result_db->get_result($v);
+	    }
+	    print $fh "\t"; 
+	}
+	print $fh "end col\n"; 
+    }
+    close $fh; 
+}
+
+sub write_result_files{
+    die if @_ != 4; 
+    my ($tuples, $result_db, $file_prefix, $info_reported) = @_; 
+    if($result_db->is_dirty()){    
+	my $file_class_hash = get_all_classes_from_class_type($tuples, 'f'); 
+	foreach my $k (keys %{$file_class_hash}){
+	    my $file_class_tuples = $file_class_hash->{$k};
+	    write_a_result_file($result_db, $file_class_tuples, $file_prefix, $info_reported); 
+	}
+    }
 }
 
 sub startup{
     my @argv = @_; 
     init(); 
     parse_program_arguments(\@argv);
-#    print ast_to_string($using_ast);
+    #print ast_to_string($using_ast);
     check_ast($using_ast);
     #print ast_to_string($using_ast);
     populate_output_dir($output_dir);
 
-    my $time_db = new Result_Db($output_dir, "time");
-    my $mem_db = new Result_Db($output_dir, "mem"); 
-    
-    my @tuples = @{ast_get_tuples($using_ast)};
 
+# Creating the databases    
+    my $time_db = new Result_Db($output_dir, "time");
+    my $mem_db = new Result_Db($output_dir, "mem");
+    my $usr_db; 
+    if($post_exec_script_path){
+	$usr_db = new Result_Db($output_dir, "usr");}
+
+# Fetching the tuples and preparing the databses
+    my @tuples = @{ast_get_tuples($using_ast)};
     foreach my $t (@tuples){
 	$time_db->result_db_add_tuple($t);
 	$mem_db->result_db_add_tuple($t);
+	if($post_exec_script_path){
+	    $usr_db->result_db_add_tuple($t);
+	}
     }
-    
+
+# Misc
     print_info();
     create_readme_file(@argv); 
-    print "\nEverything seems to be OK. Now starting experiments.\n\n";
 
+# Everything seems to be OK. Starting experiments.
+    print "\nEverything seems to be OK. Starting experiments.\n\n";
+    
     foreach my $t (@tuples){
 	my $cl = build_a_command_line($progtotest_command_template, $t);
 	push @progtotest_command_lines, $cl;
 	my ($time, $mem, $pes_output) =  run_child($cl);
 	$time_db->result_db_set_result($t, $time);
 	$mem_db->result_db_set_result($t, $mem);
+
+	# writing results... after each run for more safety. 
+	write_result_files(\@tuples, $time_db,
+			   $output_dir.'time/time_', "Wall clock time (in seconds)");
+	write_result_files(\@tuples, $mem_db,
+			   $output_dir.'mem/mem_', "Reporting: Max memory usage (in MiB)");
+	if($post_exec_script_path){
+	    write_result_files(\@tuples, $usr_db,
+			       $output_dir.'usr/usr_',
+			       "Reporting: User script output");
+	}
     }
 
-    output_result_db($time_db, \@tuples); 
-    return 1; 
-    # check_progtotest_command_template(); 
-    # build_progtotest_command_lines();
-    
-    # print "\n";
-
-
-
-     run_command_lines(); 
-
-    # finalize_readme_file(); 
-    # print "END: ".date_string."\n";
-    # print "Results are in: ".$output_dir."\n";
-    # system ("rm -f last_xp"); 
-    # system ("ln -s  $output_dir last_xp"); 
 }
 
 1;

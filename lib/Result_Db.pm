@@ -55,6 +55,15 @@ sub set_dirty{
     $self->{dirty} = 1; 
 }
 
+
+# return 1 if the data has been modified since last sync. 
+sub is_dirty{
+    die if @_ != 1;
+
+    my ($self) = @_;
+    return $self->{dirty}; 
+}
+
 sub ensure_db_file_open{
     die if @_ != 1;
     my ($self) = @_;
@@ -141,7 +150,6 @@ sub get_result{
 	}
     }
     return "UKN"; 
-
 }
 
 # Warning, must be in standard format (by default parameter values are
