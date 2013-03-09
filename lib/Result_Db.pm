@@ -127,6 +127,23 @@ sub result_db_set_result{
     $self->result_db_sync; 
 }
 
+# Return the result associated with a tuple.
+sub get_result{
+    die if @_ != 2; 
+    my ($self, $tuple) = @_;
+    
+# FIXME tuples should be a hash table (currently tuple search is uselessly O(n)
+    
+    my $string_tuple = serialize_tuple($tuple); 
+    foreach my $t (@{$self->{tuples}}){
+	if($t =~ /\Q$string_tuple\E:(.*)/){
+	    return $1; 
+	}
+    }
+    return "UKN"; 
+
+}
+
 # Warning, must be in standard format (by default parameter values are
 # lexicographically ordered by parameter names).
 # Check  Using_Ast_Check::tuple_in_std_order for more details.
@@ -140,7 +157,10 @@ sub unserialize_tuple{
     die if @_ != 1; 
     my ($string_tuple) = @_;
     
-
+    die; 
 }
+
+
+
 
 1; 

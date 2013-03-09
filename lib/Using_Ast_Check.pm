@@ -2,7 +2,7 @@ package Using_Ast_Check;
 use strict;
 use Switch; 
 use Exporter 'import';
-our @EXPORT = qw(declare_parameter check_ast params_to_string ast_get_tuples value_ref_get_pname value_ref_get_value  ast_get_dimension_indexes); 
+our @EXPORT = qw(declare_parameter check_ast params_to_string ast_get_tuples value_ref_get_pname value_ref_get_value  ast_get_dimension_indexes  all_parameter_names_in_std_order parameter_get_format_spec tuple_to_string); 
 
 # Context check ast produced by Using.pm
 
@@ -325,7 +325,7 @@ sub assign_format_spec{
 }
 
 sub parameter_get_format_spec{
-    die if @_ != 0; 
+    die if @_ != 1; 
     my ($pname) = @_;
     die unless defined $params_format_spec{$pname}; 
     return $params_format_spec{$pname};

@@ -1060,6 +1060,158 @@ sub store_result{
 #     }
 # }
 
+
+# Given a list of tuples and a tuple, return all the tuple that are
+# the in same equivalent class with respect to the format
+# specification two tuples are in the same class if all their
+# parameters of this class have the same value.
+sub get_tuple_equivalence_class{
+    die if @_ != 3;
+    my ($tuples, $tuple, $format_spec) = @_;
+    my @all_param_names = all_parameter_names_in_std_order();
+    my @class_params = (); 
+    
+    for(my $i = 0; $i < @all_param_names; $i++){
+	if(parameter_get_format_spec($all_param_names[$i]) 
+	   eq $format_spec){
+	    push @class_params, $i; 
+	}
+    }
+
+    my @class = (); 
+    foreach my $t (@{$tuples}){
+	my $same_class = 1;
+	foreach my $c (@class_params){
+	    if(not (value_ref_get_value($t->[$c]) eq 
+		    value_ref_get_value($tuple->[$c]))){
+		$same_class = 0; 
+	    }
+	}
+	push @class, $t;
+    }
+    return @class; 
+}
+
+# builds an array containing a class specification for each class of
+# level f, c or l.
+sub build_class_spec{
+    die if @_ != 3;
+    my ($tuples, $tuple, $format_spec) = @_;
+    my @all_param_names = all_parameter_names_in_std_order();
+    my @class_params = (); 
+    
+    for(my $i = 0; $i < @all_param_names; $i++){
+	if(parameter_get_format_spec($all_param_names[$i]) 
+	   eq $format_spec){
+	    push @class_params, $i; 
+	}
+    }
+
+    my @class = (); 
+
+    
+}
+
+# Returns a class specification from a tuple. A class specification is
+# also a tuple in which only class relevant parameters their
+# values are preserved. A tuple belongs to a class if all the values
+# that occurs in the class spec match the values in the tuple.
+#
+# For example [ <:> <B:2> <:> ] is a possible class spec and the tuples:
+#  [ <A:1> <B:2> <C:3> ] and [ <A:3> <B:2> <C:17> ] both belong to the
+#  class defined by the class spec.
+#
+# There are three types of class, one f (for file) class type for the
+#  class of tuples refers values that have to be stored in the same
+#  file, one c class type (for column) and one l class type for
+#  (line).
+# 
+sub tuple_to_class_spec{
+    die if @_ != 2;
+    my ($tuple, $class_type) = @_;  
+
+    my @class_spec = (); 
+    foreach my $vr (@$tuple){
+	if(parameter_get_format_spec(value_ref_get_pname($vr)) 
+	   eq $class_type){
+	    push @class_spec, $vr; 
+	}
+	else{
+	    push @class_spec, ["",""];
+	}
+    }
+
+    return \@class_spec; 
+}
+
+# Given a set of tuples and a class spec (see tuple_to_class_spec),
+# returns all the tuples that belong to the class described by class
+# spec.
+sub get_class_from_class_spec{
+    die if @_ != 2; 
+    my ($all_tuples, $class_spec) = @_;
+    my @class = (); 
+    
+    foreach my $t (@$all_tuples){
+	my $same_class_flag = 1; 
+	for(my $i = 0; $i < @$t; $i++){
+	    if(value_ref_get_pname($class_spec->[$i]) ne ""){
+		if(value_ref_get_value($class_spec->[$i]) ne 
+			value_ref_get_value($t->[$i])){
+		    $same_class_flag = 0;
+		    last; 
+		}
+	    }
+	}
+	if($same_class_flag == 1){
+	    push @class, $t ; 
+	}
+    }
+
+    return @class; 
+}
+
+sub get_all_classes_from_class_type{
+    die if @_ != 2; 
+    my ($all_tuples, $class_type) = @_; 
+
+    my %class_hash = (); 
+    foreach my $t (@$all_tuples){
+	my @class_spec = @{tuple_to_class_spec($t, $class_type)}; 
+	my $class_spec_string = tuple_to_string(\@class_spec); 
+	push @{$class_hash{$class_spec_string}}, $t;  
+    }
+    return \%class_hash; 
+}
+
+# Store the results in files/columns/lines according to the format
+# specified by the using expression.
+sub output_result_db{
+    die if @_ != 2; 
+    my ($result_db, $tuples) = @_;
+
+    my $file_class_hash = get_all_classes_from_class_type($tuples, 'f'); 
+    foreach my $k (keys %{$file_class_hash}){
+	my $file_class_tuples = $file_class_hash->{$k};
+	my $col_class_hash = get_all_classes_from_class_type($file_class_tuples, 'l'); 
+	foreach my $c (keys %{$col_class_hash}){
+	    my $col_class_tuples = $col_class_hash->{$c};
+	    my $line_class_hash = get_all_classes_from_class_type($col_class_tuples, 'c'); 
+	    foreach my $l (keys %{$line_class_hash}){
+		my $line_class_tuples = $line_class_hash->{$l};
+		foreach my $v (@$line_class_tuples){
+#		    print "v".tuple_to_string($v).":"; 
+		    print $result_db->get_result($v);
+		}
+		print "\t"; 
+	    }
+	    print "end col\n"; 
+	}
+	print "endfile\n\n"; 
+    }
+    
+}
+
 sub startup{
     my @argv = @_; 
     init(); 
@@ -1077,7 +1229,6 @@ sub startup{
     foreach my $t (@tuples){
 	$time_db->result_db_add_tuple($t);
 	$mem_db->result_db_add_tuple($t);
-
     }
     
     print_info();
@@ -1092,12 +1243,7 @@ sub startup{
 	$mem_db->result_db_set_result($t, $mem);
     }
 
-
-
-    
-
-
-    
+    output_result_db($time_db, \@tuples); 
     return 1; 
     # check_progtotest_command_template(); 
     # build_progtotest_command_lines();
