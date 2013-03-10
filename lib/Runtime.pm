@@ -21,6 +21,13 @@ use vars qw(%parameter_value_space);
 
 our $using_ast; 
 
+
+my $LINE_RESULT_SEPARATOR = "\n"; 
+my $COLUMN_RESULT_SEPARATOR = "\t"; 
+# In case there are multiple parameters with the same format spec, how to deparate them.
+# e.g. AfxBcxClxDl,
+my $CELL_RESULT_SEPARATOR = ':'; 
+
 my $timeout = -1; #In sec, -1 is unlimited
 my $mem_usage_cap = -1; #In kiB -1 is unlimited
 my $total_memory; 
@@ -1171,6 +1178,57 @@ sub get_all_classes_from_class_type{
     return \@all_classes; 
 }
 
+
+# Given a tuple (usually, the first of a line class of tuples), write
+# the line heading for the corresponding class.
+# The heading is the values of all the parameters that
+# remain constant among all the line. (Usually one.)
+sub write_line_head_from_tuple{
+    die if @_ != 2; 
+    my ($tuple, $fh) = @_;
+
+    my @l_values = get_value_refs_from_format_spec($tuple, 'l');
+
+    foreach my $j (0..$#l_values){
+	my $vr = $l_values[$j]; 
+	print {$fh} value_ref_get_value($vr);
+	print {$fh} $CELL_RESULT_SEPARATOR if($j < $#l_values)
+    }
+    print {$fh} $COLUMN_RESULT_SEPARATOR; 
+}
+
+# Bad code duplication of write_line_head_from_tuple. 
+# The only thing that differ is the head formating. 
+sub write_column_head_from_tuple{
+    die if @_ != 2; 
+    my ($tuple, $fh) = @_;
+
+    my @c_values = get_value_refs_from_format_spec($tuple, 'c');
+
+    foreach my $j (0..$#c_values){
+	my $vr = $c_values[$j]; 
+	print $fh value_ref_get_pname($vr).'='.value_ref_get_value($vr);  
+	print {$fh} $CELL_RESULT_SEPARATOR if($j < $#c_values)
+    }
+    print {$fh} $COLUMN_RESULT_SEPARATOR; 
+}
+
+# Given a tuple, and a format spec (f, c or l) returns all the value
+# refs that match the format spec
+sub get_value_refs_from_format_spec{
+    die if @_ != 2; 
+    my ($tuple, $format_spec) = @_;
+
+    my @vrefs = (); 
+    foreach my $vr (@$tuple){
+	my $pname = value_ref_get_pname($vr); 
+	if(parameter_get_format_spec($pname) eq $format_spec){
+	    push @vrefs, $vr; 
+	}
+    }
+    return @vrefs; 
+}
+
 # Given a list of tuples that belong to the same file, print the values as lines
 # and columns according to the format specified by the using
 # expression.  $fh is a file handle to the file in which we want to
@@ -1187,18 +1245,37 @@ sub write_a_result_file{
 	$fh = \*STDOUT; 
     }
 
-    print_file_header($fh, "/bin/ls", $info_reported); 
-    my $all_c_classes = get_all_classes_from_class_type($file_class_tuples, 'l'); 
+    print_file_header($fh, "/bin/ls", $info_reported);
+    
+    print $fh '# ';
+    # print first column header ie. column parameters names 
+    my @l_vr = get_value_refs_from_format_spec($file_class_tuples->[0], 'l');
+    foreach my $i (0..$#l_vr){
+	print $fh value_ref_get_pname($l_vr[$i]);
+	print $fh $CELL_RESULT_SEPARATOR if($i < $#l_vr); 
+    }
+    print $fh $COLUMN_RESULT_SEPARATOR; 
+    
+    # print columns headers
+    my $all_c_classes = get_all_classes_from_class_type($file_class_tuples, 'c'); 
     foreach my $c_class (@$all_c_classes){
-	my $all_l_classes = get_all_classes_from_class_type($c_class, 'c'); 
-	foreach my $l_class (@$all_l_classes){
-	    foreach my $v (@$l_class){
-#		    print "v".tuple_to_string($v).":"; 
-		print {$fh} $result_db->get_result($v);
+	my $tuple = $c_class->[0];
+	write_column_head_from_tuple($tuple, $fh);
+    }
+    print $fh $LINE_RESULT_SEPARATOR; 
+
+    # print line headers and values
+    my $all_l_classes = get_all_classes_from_class_type($file_class_tuples, 'l'); 
+    foreach my $l_class (@$all_l_classes){
+	write_line_head_from_tuple($l_class->[0], $fh);
+	my $all_c_classes = get_all_classes_from_class_type($l_class, 'c'); 
+	foreach my $c_class (@$all_c_classes){
+	    foreach my $v (@$c_class){
+		print $fh $result_db->get_result($v);
 	    }
-	    print $fh "\t"; 
+	    print $fh $COLUMN_RESULT_SEPARATOR; 
 	}
-	print $fh "end col\n"; 
+	print $fh $LINE_RESULT_SEPARATOR; 
     }
     close $fh; 
 }
