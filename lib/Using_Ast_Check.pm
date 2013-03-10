@@ -331,6 +331,10 @@ sub parameter_get_format_spec{
     return $params_format_spec{$pname};
 }
 
+sub get_num_parameters{
+    die if @_ != 0;
+    return scalar keys %params; 
+}
 sub guess_format_specification{
     die "You must provide format specification for each parameter f: one value per file, c: one value per column, l: one value per line. For example P1fxP2lxP3c"; 
     #TODO Guessing the best format should be easy based on parameter value spaces:

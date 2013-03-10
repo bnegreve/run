@@ -519,6 +519,15 @@ sub parse_program_arguments{
 
 	}
     }
+    
+    if(not defined $progtotest_command_template){
+	error_args("No command template provided: providing a command template is mandatory."); 
+    }
+
+    if(not defined $using_ast){
+	error_args("No using expression provided (-u): providing a using expression is mandatory."); 
+    }
+
 }
 
 
@@ -842,19 +851,16 @@ sub startup{
 
 }
 
-1;
-__END__
-
 =head1 Runtime
 
 Runtime - Run experiments and plot the results in a reproducible way.  
 
 =head1 SYNOPSIS
 
- runtime -p PARAMETER_NAME parameter_value_1 .. parameter_value_n\
- [-p PARAMETER2_NAME parameter2_value_1 .. parameter2_value_n]\
- [-s post_output_script] [-m max_memory_usage (% total)] [ -t timeout value]\
- -u using_expression -- command_line_template\n";
+ runtime -p PARAMETER_NAME parameter_value_1 .. parameter_value_n
+ [-p PARAMETER2_NAME parameter2_value_1 .. parameter2_value_n]
+ [-s post_output_script] [-m max_memory_usage (% total)] [ -t timeout value]
+ -u using_expression -- command_line_template
  
 =head1 DESCRIPTION
 
@@ -899,13 +905,16 @@ gnuplot
     
 =head1 AUTHOR
 
-Benjamin Negrevergne, E<lt>benjamin@E<gt>
+Benjamin Negrevergne, E<lt>bnegreve@gmail.com<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2010-2013 by Benjamin Negrevergne
 
 This library is free software; you can redistribute it and/or modify
-it under the same of the GPLv3.
+it under the terms of the GPLv3.
 
 =cut
+
+1;
+__END__
