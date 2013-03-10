@@ -54,16 +54,10 @@ my $max_mem_usage = 0;
 #my $current_bin_filename; 
 my %params;
 my $progtotest_command_template;
-my %parameter_value_space; 
-my @parameters_name; 
 my @progtotest_command_lines; 
-my @parameter_index_order; 
-my %parameter_values; # bind parameter actual values to indices. 
 
 our $errors = 0; 
 our $runtime_bin_path = $0; 
-
-
 
 sub error_args{
     die if @_ != 1; 
@@ -207,17 +201,6 @@ sub run_child{
 }
 
 
-sub print_usage{
-    die if @_ != 0; 
-    print STDERR "Usage: $runtime_bin_path -p PARAMETER_NAME parameter_value_1 .. parameter_value_n\
- [-p PARAMETER2_NAME parameter2_value_1 .. parameter2_value_n]\
- [-s post_output_script] [-m max_memory_usage (% total)] [ -t timeout value]\
- -u using_expression -- command_line_template\n";
- 
-
-
-    exit 0; 
-}
 
 
 sub get_hostname{
@@ -247,6 +230,13 @@ sub print_file_header{
 #
 END
     print $fh $header_string;
+}
+
+
+sub print_progtest_command_lines{
+    foreach my $cl (@progtotest_command_lines){
+	print ">>$cl<<\n"; 
+    }
 }
 
 
@@ -295,419 +285,6 @@ sub extract_bin_filename{
     return $process_name; 
 }
 
-
-# Comparaison operator used for sort_tuples. 
-sub compare_tuples{
-    die if @_ != 2; 
-    my ($t1_ref, $t2_ref) = @_; 
-
-    foreach my $i (@parameter_index_order){
-	return 1  if(@{$t1_ref}[$i] gt @{$t2_ref}[$i]);
-	return -1 if(@{$t1_ref}[$i] lt @{$t2_ref}[$i]);
-    }
-    return 0; 
-}
-
-# Sort tuples in the fcl order.  The fcl (file, column, line) groups
-# together the tuples that have the same value on an 'f' parameter,
-# then the ones that have the same value on a 'l' parameter and so on. 
-#
-# Useful to group the execution that output in the same file. 
-sub sort_tuples{
-    die if @_ == 0;
-    my @tuples = @_;
-    
-    # Compute parmeter orders to execute commands to the same file first. 
-     @parameter_index_order = compute_flc_order(); 
-
-    @tuples = sort { compare_tuples($a, $b) } @tuples; 
-    return @tuples; 
-}
-
-sub create_dat_filename_suffix{
-    die if @_ < 1; 
-    my @tuple = @_;
-
-    my $filename;
-    
-    my @parameters_names = @{$main::parameter_value_space{names}}; 
-    my @parameters_decors = @{$main::parameter_value_space{decors}}; 
-
-    foreach my $i (@parameter_index_order){
-	if($parameters_decors[$i] eq 'f'){
-	    my $value = $parameter_values{$parameters_names[$i]}->[$tuple[$i]]; 
-	    $filename .= '.'.$parameters_names[$i].'-'.$value;
-	}
-	else{
-	    $filename .= '.'.$parameters_names[$i]; 
-	}
-    }
-    return $filename.'.dat'; 
-}
-
-sub create_dat_filename_suffix_full_valued{
-    die if @_ < 1; 
-    my @tuple = @_;
-    my $filename;
-    
-    my @parameters_names = @{$main::parameter_value_space{names}}; 
-    my @parameters_decors = @{$main::parameter_value_space{decors}}; 
-
-    foreach my $i (@parameter_index_order){
-	my $value = get_parameter_value($parameters_names[$i],$tuple[$i]); 
-	$filename .= '.'.$parameters_names[$i].'-'.$value;
-    }
-    return $filename; 
-}
-
-
-sub start_file{
-    die if @_ != 1; 
-    my ($tuple) = @_;
-
-    my $filename_suffix = create_dat_filename_suffix(@$tuple); 
-    my $time_filename = $output_dir.'time/time'.$filename_suffix;
-    my $mem_filename = $output_dir.'mem/mem'.$filename_suffix;
-#    my $output_filename = $output_dir.'output/output'.$filename_suffix;
-
-    open TIME, ">$time_filename" or print STDERR "Error: Cannot create file \'$time_filename\'\n";
-    open MEM, ">$mem_filename" or print STDERR "Error: Cannot create file \'$time_filename\'\n";
-
-    if($post_exec_script_path){
-	my $pes_filename = $output_dir.'pes/pes'.$filename_suffix;
-	open PES, ">$pes_filename" or print STDERR "Error: Cannot create file \'$time_filename\'\n";
-    }
-  #  print "NEW FILE     $time_filename\n";
-
-    
-    # this is just to find the bin name in order to compute the md5 in the file header 
-    my $cl = 
-	build_progtotest_command_line($progtotest_command_template,
-				      $tuple, 0); 
-
-    print_file_header(extract_bin_filename($cl)); 
-}
-
-
-sub end_file{
-    my @all_command_lines = @_; 
-
-    print TIME "\n####\n"; 
-    print MEM "\n####\n"; 
-
-    foreach my $cl (@all_command_lines){
-	print TIME "# $cl (executable's md5 sum: ".md5_file(extract_bin_filename($cl)).")\n";
-	print MEM "# $cl (executable's md5 sum: ".md5_file(extract_bin_filename($cl)).")\n";
-    }    
-
-    close TIME; 
-    close MEM; 
-    
-#    close OUTPUT; 
-}
-
-
-sub start_line{
-    die if @_ != 3; 
-    my ($tuple, $tuple_range, $print_line_head) = @_;
-
-    if($print_line_head){
-#print line values 
-	print TIME "#";
-	print MEM "#";
-	print PES "#" if $post_exec_script_path;
-
-	foreach my $v (@parameter_index_order){
-	    if($main::parameter_value_space{decors}->[$v] eq 'l'){
-		start_column();
-		my $parameter_name = $main::parameter_value_space{names}->[$v]; 
-		print TIME "$parameter_name";
-		print MEM "$parameter_name";
-		print PES "$parameter_name" if $post_exec_script_path;
-		end_column();
-	    }
-	}
-
-	foreach my $v (@parameter_index_order){
-	    if($main::parameter_value_space{decors}->[$v] eq 'c'){
-		my $parameter_name = $main::parameter_value_space{names}->[$v]; 
-		foreach my $t (@{$tuple_range}){
-		    start_column();
-		    print TIME "$parameter_name="
-			.get_parameter_value($parameter_name, $t->[$v]); 
-		    print MEM "$parameter_name="
-			.get_parameter_value($parameter_name, $t->[$v]); 
-		    print PES "$parameter_name="
-			.get_parameter_value($parameter_name, $t->[$v]) if $post_exec_script_path; 
-
-		    end_column();
-		}
-	    }
-	}
-	end_line();
-    }
-    
-    foreach my $v (@parameter_index_order){
-	start_column();
-	if($main::parameter_value_space{decors}->[$v] eq 'l'){
-	    my $parameter_name = $main::parameter_value_space{names}->[$v];
-	    start_column(); 
-	    print TIME get_parameter_value($parameter_name, $tuple->[$v]); 
-	    print MEM get_parameter_value($parameter_name, $tuple->[$v]); 
-	    print PES get_parameter_value($parameter_name, $tuple->[$v]) if $post_exec_script_path; 
-
-	    end_column(); 
-	}
-    }
-
-}
- 
-
-sub end_line{
-    print TIME "\n"; 
-    print MEM "\n";
-    print PES "\n" if $post_exec_script_path; 
-}
-
-sub start_column{
-    #   print "NEW COL\n"; 
-}
-
-sub end_column{
-    print TIME "\t"; 
-    print MEM "\t";
-    print PES "\t" if $post_exec_script_path; 
-}
-
-
-sub get_parameter_value{
-    die if @_ != 2; 
-    my ($name, $index) = @_; 
-    return $parameter_values{$name}->[$index];
-}
-
-# returns true if two tuple have equal value on a same level and level
-# above level can be either 'f' 'l' or 'c' e.g. (a1, b2, c1) and (a1,
-# b2, c2) are c-equal if c2 is the value of the first column
-# parameter.
-# 
-sub tuple_level_compare{
-    die if @_ != 3; 
-    my ($t1_ref, $t2_ref, $level) = @_; 
-    my $parameters_decors = $main::parameter_value_space{decors}; 
-
-    # print "COMPARING : false\n"; 
-    # print "TUPLE : ";print_tuple($t1_ref);
-    # print "\n"; 
-    # print "TUPLE : ";print_tuple($t2_ref); 
-    # print "\n"; 
-    
-    my $below_level = 0; 
-    foreach my $v (@parameter_index_order){
-	my $decor = $parameters_decors->[$v]; 
-	if ($below_level && (not $decor eq $level)) {return 1;}
-	if(not $t1_ref->[$v] eq $t2_ref->[$v]){
-	    return 0;
-	}
-	if ($decor eq $level){$below_level = 1;}
-    }
-    return 1; 
-}
-
-
-
-# given a tuple and a flc level return the larger (wrt flc order) that
-# belong to the same class.
-# e.g. (a1f, b1l, c1l, d1, e1), l
-# will return 
-# b1l, c1l, d1, e1
-# b1l, c1l, d1, e2
-# b1l, c1l, d2, e1
-# b1l, c1l, d2, 
-sub extract_tuple_class{
-    die if @_ != 3; 
-    my ($tuples, $tuple_index, $level) = @_; 
-
-    my $end = $tuple_index; 
-    while(my $retval = tuple_level_compare($tuples->[$tuple_index], $tuples->[$end], $level)){
-#	print "RETVAL $retval\n"; 
-	$end++;
-    }
-    $end--;
-#    print "RETURNED $tuple_index, $end\n";
-    return ($tuple_index, $end); 
-}
-
-sub run_command_lines{
-    die if @_ != 0;
-    my @parameters_names = @{$main::parameter_value_space{names}}; 
-    my @parameters_decors = @{$main::parameter_value_space{decors}}; 
-    
-# A tuple is a possible set of parameter values in the parameter value space.
-
-#    print_parameter_value_space(); 
-    my $previous_tuple = -1; 
-    my $filename; 
-
-    my $tuple;
-#    foreach  $tuple (sort_tuples @{$main::parameter_value_space{values}}){
-    my @tuples_sorted = sort_tuples @{$main::parameter_value_space{values}}; 
-    for (my $tuple_index = 0; $tuple_index <= $#tuples_sorted; $tuple_index++){
-	my ($f_start, $f_end) = extract_tuple_class(\@tuples_sorted, $tuple_index, 'f');
-#	print "FILE RANGE : $f_start, $f_end\n";
-	if($f_end - $f_start != -1){
-	    start_file($tuples_sorted[$f_start]);
-	    my @file_cl = (); 
-	    for (my $f_idx = $f_start; $f_idx <= $f_end; $f_idx++){
-		my ($l_start, $l_end) = extract_tuple_class(\@tuples_sorted, $f_idx, 'l');
-#		print "LINE RANGE : $l_start, $l_end\n"; 
-		if($l_end - $l_start != -1){
-		    start_line($tuples_sorted[$l_start], [@tuples_sorted[$l_start..$l_end]], $f_idx == $f_start);
-		    for (my $l_idx = $l_start; $l_idx <= $l_end; $l_idx++){
-			my ($c_start, $c_end) = 
-			    extract_tuple_class(\@tuples_sorted, $l_idx, 'c');
-#			print "COLONE RANGE : $l_idx $c_start, $c_end\n"; 
-			if($c_end - $c_start != -1){
-			    start_column($tuples_sorted[$c_start]);
-			    foreach my $c_idx ($c_start .. $c_end){
-
-				#RUN 
-				$tuple = $tuples_sorted[$c_idx];
-
-				my $cl = 
-				    build_progtotest_command_line($progtotest_command_template,
-								  $tuple,0);
-				my ($time, $mem, $pes_output) =  run_child($cl);
-				
-				push @file_cl, $cl; 
-				
-				print TIME $time; 
-				print MEM $mem; 
-				print PES $pes_output if $post_exec_script_path; 
-
-				# move child output file in the right place
-				system ("mv /tmp/out_tmp $output_dir/output/output".create_dat_filename_suffix_full_valued(@{$tuple}).'.output');
-				
-			    }
-			    end_column(); 
-
-			}
-		    $l_idx = $c_end;
-		    }
-		    end_line(); 
-		}
-		$f_idx = $l_end;
-	    }
-	    end_file(@file_cl); 
-	    
-	}
-	$tuple_index = $f_end; 
-    }
-}
-
-sub print_progtest_command_lines{
-    foreach my $cl (@progtotest_command_lines){
-	print ">>$cl<<\n"; 
-    }
-}
-
-# Return an array of indexes in parameters names array so that any
-# parameter name with a 'f' decor occurs before any parameter name
-# with a 'l' decor and any parameter name with a 'l' decor occurs
-# before any parameter name with a 'c' decor. 
-sub compute_flc_order{
-    die if @_  != 0;
-    my @order; 
-    my @parameter_names =  @{$main::parameter_value_space{names}};
-    my @parameter_decors =  @{$main::parameter_value_space{decors}};
-
-    for my $pi (0..$#parameter_names){
-	if($parameter_decors[$pi] eq "f"){
-	    push @order, $pi; 
-	}
-    }
-    for my $pi (0..$#parameter_names){
-	if($parameter_decors[$pi] eq "l"){
-	    push @order, $pi; 
-	}
-    }
-    for my $pi (0..$#parameter_names){
-	if($parameter_decors[$pi] eq "c"){
-	    push @order, $pi; 
-	}
-    }
-
-    # print "MY ORDER \n"; 
-    # foreach $v(@order){
-    # 	print "$v "; 
-    # }
-    # print "\n";
-    return @order; 
-}
-
-
-# Build a command line from a parameter tuples.
-# Substitutes parameter names by corresponding values in the tuples. 
-sub build_progtotest_command_line{
-    die if @_ != 3;
-    my ($command_line_template, $tuple, $print_warning) = @_;
-
-    my @parameter_names =  @{$main::parameter_value_space{names}};
-    
-    my $command_line = $progtotest_command_template;
-    for my $i (0..$#{$tuple}){
-	unless ($command_line =~ s/$parameter_names[$i]/$parameter_values{$parameter_names[$i]}->[$tuple->[$i]]/g){
-	    
-	    print STDERR "Warning: Cannot subtitute parameter \'$parameter_names[$i]\' by value \'$parameter_values{$parameter_names[$i]}->[$tuple->[$i]]\' in command line template \'$progtotest_command_template\'.\n" if $print_warning;
-	}
-	
-    }
-    return $command_line; 
-}
-
-# helper function
-sub print_parameter_value_space{
-    die if @_ != 0;
-    foreach my $v (sort_tuples @{$main::parameter_value_space{values}}){
-	print_tuple($v); 
-	print "\n";
-    }
-    
-}
-
-sub print_tuple{
-    die if @_ != 1;
-    my ($tuple) = @_;
-    my @parameter_names =  @{$main::parameter_value_space{names}};
-    
-    foreach my $u (0..$#{$tuple}){
-	print $parameter_names[$u].'['.$tuple->[$u].']'.':'.get_parameter_value($parameter_names[$u], $tuple->[$u])." \t";
-    }	
-    
-}
-
-sub build_progtotest_command_lines{
-    die if @_ != 0; 
-
-  
-    foreach my $tuple (sort_tuples @{$main::parameter_value_space{values}}){
-	push @progtotest_command_lines, build_progtotest_command_line($progtotest_command_template, $tuple, 1);
-    }
-
-}
-
-sub check_progtotest_command_template{
-    foreach my $param (keys %params){
-	if($progtotest_command_template =~ /$param/){
-#	    print "Found param \'$param\'$ in command line template.\n"; 
-	}
-	else{
-	    print STDERR "Warning: param \'$param$\' not found in command line template.\n"; 
-	}
-    }
-}
-
-
 sub output_dir_default_name{
     die if @_ != 0; 
     my $output_dir = date_string().'/';
@@ -732,9 +309,6 @@ sub kill_process_tree{
 	if($p->{"ppid"} == $pid){
 	    kill_process_tree($p->{"pid"}); 
 	}
-	# if($p->{"pid"} == $pid){
-	#     print "Killing".$p->{"cmndline"}."\n"; 
-	# }
     }
     kill 9, $pid; 
 }
@@ -770,15 +344,6 @@ sub init{
     $output_dir = output_dir_default_name(); 
     
 }
-
-# records a new parameter and its possible values
-sub add_parameter_values{
-     die if @_ != 2; 
-     my ($p_name, $value_space_ref) =  @_; 
-     $parameter_values{$p_name} = $value_space_ref; 
-     Using::add_parameter_range($p_name, $#{$value_space_ref}+1); 
-}
-
 
 sub create_readme_file{
     die if @_ < 1; 
@@ -821,6 +386,19 @@ sub populate_output_dir{
     system("mkdir -p $output_dir/output");
     system("mkdir -p $output_dir/usr") if $post_exec_script_path; 
 }
+
+sub print_usage{
+    die if @_ != 0; 
+    print STDERR "Usage: $runtime_bin_path -p PARAMETER_NAME parameter_value_1 .. parameter_value_n\
+ [-p PARAMETER2_NAME parameter2_value_1 .. parameter2_value_n]\
+ [-s post_output_script] [-m max_memory_usage (% total)] [ -t timeout value]\
+ -u using_expression -- command_line_template\n";
+ 
+
+
+    exit 0; 
+}
+
 
 sub parse_program_arguments{
     $#_ == 0 or die "Unexpected argument number.\n"; 
@@ -969,31 +547,7 @@ sub build_a_command_line{
     return $template;     
 }
 
-
-# Build a dimension name from a tuple and a dimension specification
-# (i.e. f c or l).  
-#
-# e.g. tuple_build_dim_name([ <A:1> <B:2> <C:1> <D:2> ], 'l') will
-# return the string "C.1_D.2" if the dimension specification is "fcll" 
-# (file column line line)
-sub tuple_build_dim_name{
-    die if @_ != 2; 
-    my ($tuple, $dim_name) = @_;
-    my $string = "";
-    my @dims_index = ast_get_dimension_indexes($using_ast, $dim_name);
-
-    my $i = 0; 
-    foreach my $vr_index(@dims_index){
-	$string .= value_ref_get_pname($tuple->[$vr_index]).".".value_ref_get_value($tuple->[$vr_index]);
-	if(++$i != @dims_index){
-	    $string .= '_';     
-	}
-    }
-    return $string; 
-}
-
-
-# Convert a tuple into a filename
+# Create a filename from a tuple. 
 sub tuple_to_filename{
     die if @_ != 1; 
     my ($tuple) = @_;
@@ -1028,66 +582,6 @@ sub tuple_to_filename{
 	}
     }
     return $string; 
-}
-
-# Store a result in a structed db. 
-sub store_result{
-    die if @_ != 3;
-    my ($tag, $tuple, $result_string) = @_; 
-
-    result_db_insert_value(tuple_to_filename($tuple), tuple_build_dim_name($tuple, 'c'),
-			   tuple_build_dim_name($tuple, 'l'), $result_string);
-}
-
-# Given a list of tuples and a tuple, return all the tuple that are
-# the in same equivalent class with respect to the format
-# specification two tuples are in the same class if all their
-# parameters of this class have the same value.
-sub get_tuple_equivalence_class{
-    die if @_ != 3;
-    my ($tuples, $tuple, $format_spec) = @_;
-    my @all_param_names = all_parameter_names_in_std_order();
-    my @class_params = (); 
-    
-    for(my $i = 0; $i < @all_param_names; $i++){
-	if(parameter_get_format_spec($all_param_names[$i]) 
-	   eq $format_spec){
-	    push @class_params, $i; 
-	}
-    }
-
-    my @class = (); 
-    foreach my $t (@{$tuples}){
-	my $same_class = 1;
-	foreach my $c (@class_params){
-	    if(not (value_ref_get_value($t->[$c]) eq 
-		    value_ref_get_value($tuple->[$c]))){
-		$same_class = 0; 
-	    }
-	}
-	push @class, $t;
-    }
-    return @class; 
-}
-
-# builds an array containing a class specification for each class of
-# level f, c or l.
-sub build_class_spec{
-    die if @_ != 3;
-    my ($tuples, $tuple, $format_spec) = @_;
-    my @all_param_names = all_parameter_names_in_std_order();
-    my @class_params = (); 
-    
-    for(my $i = 0; $i < @all_param_names; $i++){
-	if(parameter_get_format_spec($all_param_names[$i]) 
-	   eq $format_spec){
-	    push @class_params, $i; 
-	}
-    }
-
-    my @class = (); 
-
-    
 }
 
 # Returns a class specification from a tuple. A class specification is
@@ -1229,11 +723,10 @@ sub get_value_refs_from_format_spec{
     return @vrefs; 
 }
 
-# Given a list of tuples that belong to the same file, print the values as lines
-# and columns according to the format specified by the using
-# expression.  $fh is a file handle to the file in which we want to
-# print.
-# Waring: all the tuples must belong to the same file.
+# Given a list of tuples that belong to the same file, print the
+# results in lines columns according to the format specified by the
+# using expression.  $fh is a file handle to the file in which we want
+# to print.  Waring: all the tuples must belong to the same file.
 sub write_a_result_file{
     die if @_ != 4; 
     my ($result_db, $file_class_tuples, $file_prefix, $info_reported) = @_;
@@ -1246,9 +739,9 @@ sub write_a_result_file{
     }
 
     print_file_header($fh, "/bin/ls", $info_reported);
-    
     print $fh '# ';
-    # print first column header ie. column parameters names 
+    
+    # print first column header ie. parameter names of column parameters
     my @l_vr = get_value_refs_from_format_spec($file_class_tuples->[0], 'l');
     foreach my $i (0..$#l_vr){
 	print $fh value_ref_get_pname($l_vr[$i]);
@@ -1256,7 +749,7 @@ sub write_a_result_file{
     }
     print $fh $COLUMN_RESULT_SEPARATOR; 
     
-    # print columns headers
+    # print columns headers ie. parameter names of line parameter with their value 
     my $all_c_classes = get_all_classes_from_class_type($file_class_tuples, 'c'); 
     foreach my $c_class (@$all_c_classes){
 	my $tuple = $c_class->[0];
@@ -1264,7 +757,7 @@ sub write_a_result_file{
     }
     print $fh $LINE_RESULT_SEPARATOR; 
 
-    # print line headers and values
+    # print line headers (i.e. values of column parameters.) and results for this line. 
     my $all_l_classes = get_all_classes_from_class_type($file_class_tuples, 'l'); 
     foreach my $l_class (@$all_l_classes){
 	write_line_head_from_tuple($l_class->[0], $fh);
@@ -1430,11 +923,3 @@ at your option, any later version of Perl 5 you may have available.
 
 
 =cut
-
-
-
-
-
-
-
-
