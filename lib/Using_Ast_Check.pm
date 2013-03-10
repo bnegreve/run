@@ -1,5 +1,6 @@
 # Copyright (C) 2010-2013, Benjamin Negrevergne.
 package Using_Ast_Check; 
+use 5.012; 
 use strict;
 use Switch; 
 use Exporter 'import';

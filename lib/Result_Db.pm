@@ -1,7 +1,7 @@
 # Copyright (C) 2010-2013, Benjamin Negrevergne.
 package Result_Db;
 
-use 5.014002;
+use 5.012; 
 use strict;
 use warnings;
 use Exporter 'import';

@@ -1,5 +1,6 @@
 # Copyright (C) 2010-2013, Benjamin Negrevergne.
 package Using; #Using expression parser
+use 5.012; 
 use strict;
 use Exporter 'import';
 our @EXPORT = qw(ast_to_string parse); 
