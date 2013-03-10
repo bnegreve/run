@@ -844,17 +844,18 @@ sub startup{
 
 1;
 __END__
-# Below is stub documentation for your module. You'd better edit it!
 
-=head1 NAME
+=head1 Runtime
 
-runtime - Perl extension for blah blah blah
+Runtime - Run experiments and plot the results in a reproducible way.  
 
 =head1 SYNOPSIS
 
-  use runtime;
-  blah blah blah
-
+ runtime -p PARAMETER_NAME parameter_value_1 .. parameter_value_n\
+ [-p PARAMETER2_NAME parameter2_value_1 .. parameter2_value_n]\
+ [-s post_output_script] [-m max_memory_usage (% total)] [ -t timeout value]\
+ -u using_expression -- command_line_template\n";
+ 
 =head1 DESCRIPTION
 
 Runtime can be used to measure and plot statistics such as time or
@@ -874,52 +875,37 @@ echo a2 b1
 echo a2 b2
 echo a2 b3
 
-2. Collect time statistics and store them into file. 
+2. Collect time and memory statistics and store them into file. 
 One value per column for P1, one value per line for P2.
 
+3. Store the results in files, lines and columns according to format
+specifications in the using expression.  In our example P1cxP2l means
+that time (and memory) results will be stored one value per column for
+P1 and one value per line for P2.
 
-Essentially Runtime is a tool to map points in a high dimensional
-space (the space of parameters) onto the three dimensional space that
-consists in columns, lines, and files.
+This will lead to the following layout in the output file. 
 
+# P2    P1=a1   P1=a2
+b1      0.00    0.00
+b2      0.00    0.00
+b3      0.00    0.00
 
-
-
-
-Stub documentation for runtime, created by h2xs. It looks like the
-author of the extension was negligent enough to leave the stub
-unedited.
-
-Blah blah blah.
-
-=head2 EXPORT
-
-None by default.
-
+(time are 0.00 because executing "echo" is almost instantaneous. )
 
 
 =head1 SEE ALSO
 
-Mention other useful documentation such as the documentation of
-related modules or operating system documentation (such as man pages
-in UNIX), or any relevant external documentation such as RFCs or
-standards.
-
-If you have a mailing list set up for your module, mention it here.
-
-If you have a web site set up for your module, mention it here.
-
+gnuplot
+    
 =head1 AUTHOR
 
 Benjamin Negrevergne, E<lt>benjamin@E<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2013 by Benjamin Negrevergne
+Copyright (C) 2010-2013 by Benjamin Negrevergne
 
 This library is free software; you can redistribute it and/or modify
-it under the same terms as Perl itself, either Perl version 5.14.2 or,
-at your option, any later version of Perl 5 you may have available.
-
+it under the same of the GPLv3.
 
 =cut
