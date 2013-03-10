@@ -1,3 +1,4 @@
+# Copyright (C) 2010-2013, Benjamin Negrevergne.
 #!/usr/bin/perl  -w
 use strict; 
 use Runtime; 

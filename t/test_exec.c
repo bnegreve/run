@@ -1,11 +1,4 @@
-/*
-** test_exec.c
-** 
-** Made by (Benjamin Negrevergne)
-** Email   <Benjamin.Negrevergne[at]imag[dot]fr>
-** 
-** Started on  Sat Mar 10 19:51:51 2012 Benjamin Negrevergne
-*/
+// Copyright (C) 2010-2013, Benjamin Negrevergne.
 
 
 /* Test program fakes a computation, the first parameter is the number

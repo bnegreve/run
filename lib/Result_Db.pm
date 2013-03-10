@@ -1,3 +1,4 @@
+# Copyright (C) 2010-2013, Benjamin Negrevergne.
 package Result_Db;
 
 use 5.014002;

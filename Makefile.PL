@@ -1,3 +1,4 @@
+# Copyright (C) 2010-2013, Benjamin Negrevergne.
 use 5.014002;
 use ExtUtils::MakeMaker;
 

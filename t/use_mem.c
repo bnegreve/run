@@ -1,11 +1,4 @@
-/*
-** use_mem.c
-** 
-** Made by (Benjamin Negrevergne)
-** Email   <Benjamin.Negrevergne[at]imag[dot]fr>
-** 
-** Started on  Thu Mar 29 15:07:14 2012 Benjamin Negrevergne
-*/
+// Copyright (C) 2010-2013, Benjamin Negrevergne.
 
 #include <stdio.h>
 #include <stdlib.h>

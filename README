@@ -1,3 +1,5 @@
+Runtime is Copyright (C) 2010-2013, Benjamin Negrevergne.
+
 runtime version 0.01
 ====================
 
@@ -72,9 +74,15 @@ For example, on Debian (and proably Ubuntu) you can install the dependencies as 
    make test
    make install 
 
-COPYRIGHT AND LICENCE
+LICENCE INFORMATION
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of  Gnu General Public License. For details, see the
+full text of the license in the file LICENSE.
+
+This program is distributed in the hope that it will be
+useful, but it is provided “as is” and without any express
+or implied warranties. For details, see the full text of
+the license in the file LICENSE.
 
 Copyright (C) 2010-2013 by Benjamin Negrevergne
-
-This library is free software; you can redistribute it and/or modify
-it under the terms of the GPL-3. 

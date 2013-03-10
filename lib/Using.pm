@@ -1,3 +1,4 @@
+# Copyright (C) 2010-2013, Benjamin Negrevergne.
 package Using; #Using expression parser
 use strict;
 use Exporter 'import';
