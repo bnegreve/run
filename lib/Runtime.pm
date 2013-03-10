@@ -886,51 +886,51 @@ values, Runtime does the following.
 Let's say we want to run the echo program multiple times with
 different parameters.
 We can do it with the following command line:
-    
- $> runtime -p P1 a1 a2 -p P2 b1 b2 b3 -u P1cxP2l -- echo P1 P2
 
-will:
+     runtime -p P1 a1 a2 -p P2 b1 b2 b3 -u P1cxP2l -- echo P1 P2
 
-1. Run the following commands 
+Which will:
 
-echo a1 b1
-echo a1 b2
-echo a1 b3
-echo a2 b1
-echo a2 b2
-echo a2 b3
+- Run the following commands 
 
-2. Collect run times and memory usage and store them into file. 
+    echo a1 b1
+    echo a1 b2
+    echo a1 b3
+    echo a2 b1
+    echo a2 b2
+    echo a2 b3
+
+- Collect run times and memory usage and store them into file. 
 One value per column for P1, one value per line for P2. 
 (lowercase c stands for column, l for line, and f for file). 
 
-3. Store the results in files, lines and columns according to format
+- Store the results in files, lines and columns according to format
 specifications in the using expression.  In our example P1cxP2l means
 that time (and memory) results will be stored one value per column for
 P1 and one value per line for P2.
 
 This will lead to the following layout in the output file. 
 
-# P2    P1=a1   P1=a2
-b1      0.00    0.00
-b2      0.00    0.00
-b3      0.00    0.00
+    # P2    P1=a1   P1=a2
+    b1      0.00    0.00
+    b2      0.00    0.00
+    b3      0.00    0.00
 
-(time are 0.00 because executing "echo" is almost instantaneous. )
+(time are 0.00 because executing "echo" is almost instantaneous.)
 
-File can be plotted using Gnuplot for example.
+Result files are easy to plot using Gnuplot or other plotting tools.
 
 =head1 PARAMETERS 
 
 Each parameter is declared with the -p switch as follows. (Multiple parameters are declared with multiple -p switch.)
 
--p PARAMETER_NAME value1 value2 value3 ...
+    -p PARAMETER_NAME value1 value2 value3 ...
     
 PARAMETER_NAME is the parameter name in capital letter and is followed by all the parameters values (strings) separated by whitespaces.
 
 Notice that this is also possible:
     
--p NUM_THREADS `seq 1 32`
+    -p NUM_THREADS `seq 1 32`
     
     
 =head1 USING EXPRESSION
@@ -939,7 +939,6 @@ The using expression servs two purposes:
 
 1. It describes how to combine the parameters values to build the
 command lines from the command line template.
-
 2. It describes the format specification to write the results into
 files lines and columns with an adequate format. 
 
@@ -956,29 +955,31 @@ for example ('l' and 'c' are format descriptors, you can safely ignore them for 
 
 runtime -p A a1 a2 -p B b1 b2 -u AlxBc -- echo A B C 
 will program the execution of:
- echo a1 b1
- echo a1 b2
- echo a2 b1
- echo a2 b2
+    echo a1 b1
+    echo a1 b2
+    echo a2 b1
+    echo a2 b2
 
     '='   maps all the values of the right operand to a value of the left operand with respect to the input value order. 
 
 for example:
 
-runtime -p A a1 a2 -p B b1 b2 -u Al=Bc -- echo A B C 
+    runtime -p A a1 a2 -p B b1 b2 -u Al=Bc -- echo A B C
+    
 will program the execution of:
- echo a1 b1
- echo a2 b2
+    
+    echo a1 b1
+    echo a2 b2
 
 You can combine them, and use paranthesis:
     
-runtime -p A a1 a2 -p B b1 b2 -p C c1 c2 -u "(Ac=Bl)xCf" -- echo A B C 
+    runtime -p A a1 a2 -p B b1 b2 -p C c1 c2 -u "(Ac=Bl)xCf" -- echo A B C 
 
 will program the execution of: 
- echo a1 b1 c1
- echo a1 b1 c2
- echo a2 b2 c1
- echo a2 b2 c2
+    echo a1 b1 c1
+    echo a1 b1 c2
+    echo a2 b2 c1
+    echo a2 b2 c2
 
 Note that if you introduce paranthesis, you must quote the using
 expression.
@@ -993,16 +994,16 @@ They can be either 'f', 'l', or 'c'.
 - c stands for "one value per column"
 
 So:
-runtime -p A a1 a2 -p B b1 b2 -p C c1 c2 -u AfxBcxCl -- echo A B C 
+    runtime -p A a1 a2 -p B b1 b2 -p C c1 c2 -u AfxBcxCl -- echo A B C 
     
 Will create two files in the time output directory named:
 time_A.a1_B_C and time_A.a2_B_C
 
-Each file contains times measurements layedout as follows:
-# C     B=b1    B=b2
-c1      0.00    0.00
-c2      0.00    0.00
-
+Each file contains times measurements laid out as follows:
+    # C     B=b1    B=b2
+    c1      0.00    0.00
+    c2      0.00    0.00
+    
 i.e. One value per column for parameter B and one value per line for
 parameter C.
 
@@ -1024,7 +1025,7 @@ gnuplot
     
 =head1 AUTHOR
 
-Benjamin Negrevergne, E<lt>bnegreve@gmail.com<gt>
+Benjamin Negrevergne, E<lt>bnegreve@gmail.comE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
