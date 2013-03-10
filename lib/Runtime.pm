@@ -51,7 +51,7 @@ my @runs =();
 
 my $output_dir;
 my $tmp_out; # temporary out file.
-
+my $time_tmp_file; # temporary out file for time process
 my $post_exec_script_path; 
 my $max_mem_usage = 0; 
 #my $current_bin_filename; 
@@ -166,10 +166,10 @@ sub run_child{
     my $child_pid = fork;
     $current_process_pid = $child_pid;
     $max_mem_usage = 0; #reset mem usage 
-    
+
     if (not $child_pid) {
 	print "Executing: $command\n";
-	exec "/usr/bin/time -o time.dat -f \"%e\" $command 2>&1 > $tmp_out " or die "command failed\n"; 
+	exec "/usr/bin/time -o $time_tmp_file -f \"%e\" $command 2>&1 > $tmp_out " or die "command failed\n"; 
     }
 
 
@@ -181,7 +181,7 @@ sub run_child{
     }
     
     my $time;
-    open TIME_TMP, "time.dat" or die "cannot open time file\n";
+    open TIME_TMP, "$time_tmp_file" or die "cannot open time file\n";
     $time = <TIME_TMP>; 
     chop $time; 
     close TIME_TMP; 
@@ -347,7 +347,10 @@ sub init{
     
 # preparing tmp file to store program outputs. 
     (my $out_fh, $tmp_out) = tempfile("/tmp/runtime_tmp_XXXX");
+    close($out_fh);
+    ($out_fh, $time_tmp_file) = tempfile("/tmp/runtime_tmp_time_XXXX");
     close($out_fh); 
+
 }
 
 sub create_readme_file{
@@ -562,6 +565,7 @@ sub build_a_command_line{
 }
 
 # Create a filename from a tuple. 
+# (To store results.)
 sub tuple_to_filename{
     die if @_ != 1; 
     my ($tuple) = @_;
@@ -596,6 +600,53 @@ sub tuple_to_filename{
 	}
     }
     return $string; 
+}
+
+# Create a filename from a tuple. 
+# (To store program output.)
+sub tuple_to_output_filename{
+    die if @_ != 1; 
+    my ($tuple) = @_;
+    my $string = "";
+    my @file_dims = ast_get_dimension_indexes($using_ast, "f");
+    my @cols_dims = ast_get_dimension_indexes($using_ast, "c");
+    my @line_dims = ast_get_dimension_indexes($using_ast, "l"); 
+    my $total = @file_dims + @cols_dims + @line_dims; 
+
+    my $i = 0; 
+
+    foreach my $d (@file_dims){
+	my $vr = $tuple->[$d]; 
+	$string .= value_ref_get_pname($vr);
+	$string .= '.'.value_ref_get_value($vr);
+	if(++$i != $total){
+	    $string .= '_';
+	}
+    }
+    foreach my $d (@cols_dims){
+	my $vr = $tuple->[$d]; 
+	$string .= value_ref_get_pname($vr);
+	$string .= '.'.value_ref_get_value($vr);
+	if(++$i != $total){
+	    $string .= '_';
+	}
+    }
+    foreach my $d (@line_dims){
+	my $vr = $tuple->[$d]; 
+	$string .= value_ref_get_pname($vr);
+	$string .= '.'.value_ref_get_value($vr);
+	if(++$i != $total){
+	    $string .= '_';
+	}
+    }
+    return $string; 
+}
+
+sub save_program_output{
+    die if @_ != 1; 
+    my ($tuple) = @_;
+    my $filename = "$output_dir/output/".tuple_to_output_filename($tuple).".out";
+    system ("mv $tmp_out $filename");
 }
 
 # Returns a class specification from a tuple. A class specification is
@@ -849,6 +900,8 @@ sub startup{
 			       $output_dir.'usr/usr_',
 			       "User script output");
 	}
+
+	save_program_output($t); 
     }
 
 # Finalize
