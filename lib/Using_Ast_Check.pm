@@ -178,7 +178,7 @@ sub check_prod_operator_node{
 
     foreach my $v1 (@$left_tuples){
     	foreach my $v2 (@$right_tuples){
-	    push $node->{value}->{tuples}, [@$v1, @$v2];
+	    push @{$node->{value}->{tuples}}, [@$v1, @$v2];
     	}
     }
     
@@ -203,7 +203,7 @@ sub check_eq_operator_node{
 
     $node->{value}->{tuples} = [];
     for my $i (0..$#{$left_tuples}){
-	push $node->{value}->{tuples},
+	push @{$node->{value}->{tuples}},
 	[@{$left_tuples->[$i]}, @{$right_tuples->[$i]}];
     }
 }

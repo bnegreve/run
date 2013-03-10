@@ -1,7 +1,6 @@
 # Copyright (C) 2010-2013, Benjamin Negrevergne.
 package Runtime;
 
-use 5.014002;
 use strict;
 use warnings;
 
