@@ -8,6 +8,7 @@ LICENSE
 Makefile.PL
 MANIFEST
 README.org
+INSTALL
 runtime
 script/runtime
 t/Runtime.t

@@ -2,7 +2,47 @@ Runtime is Copyright (C) 2010-2013, Benjamin Negrevergne.
 
 * Runtime
 
-** DEPENDENCIES
+Run experiments and plot the results in a reproducible way.  
+
+** Description 
+
+Runtime can be used to measure and plot statistics such as time or
+memory usage on programs with a (possibly large) number of parameters.
+
+For example the following command:
+
+ $> runtime -p P1 a1 a2 -p P2 b1 b2 b3 -u P1cxP2l -- echo P1 P2
+
+will 
+1. Run the following commands 
+
+echo a1 b1
+echo a1 b2
+echo a1 b3
+echo a2 b1
+echo a2 b2
+echo a2 b3
+
+2. Collect time and memory statistics and store them into file. 
+One value per column for P1, one value per line for P2.
+
+3. Store the results in files, lines and columns according to format
+specifications in the using expression.  In our example P1cxP2l means
+that time (and memory) results will be stored one value per column for
+P1 and one value per line for P2.
+
+This will lead to the following layout in the output file. 
+
+# P2    P1=a1   P1=a2
+b1      0.00    0.00
+b2      0.00    0.00
+b3      0.00    0.00
+
+(time are 0.00 because executing "echo" is almost instantaneous. )
+
+Given this file, plotting is easy (using gnuplot for example.) 
+
+** Dependencies
 
 Runtime requires the following CPAN modules to be available in your @INC path. 
 
@@ -12,68 +52,22 @@ Runtime requires the following CPAN modules to be available in your @INC path.
 
 See following section for more info about how to install.     
 
-** USER LOCAL INSTALLATION
+** Install
 
-Before you can run and install Runtime, you need to install a cuple of
-CPAN modules. This can be done without system wide permissions
-following the following steps. For a system wise installation, see next section.
-
-1. Install a writable perl directory for cpan modules
-
-    cpan (default aswers) 
-
-2. Source your shell config file, for example: 
-  
-    source ~/.bashrc
-
-3. Download and install the dependencies
-    
-    cpan Parse::RecDescent Proc::ProcessTable Digest::MD5
-    
-You can now build and install Runtime.
-
-4. Move to Runtime source tree.
-   
-   cd /path/to/runtime/sourcetree
-
-5. Build and install    
+   Once you have the dependencies installed, you can install Runtime
+   using the standard install process, i.e.:
 
    perl Makefile.PL
    make
-   make test
    make install 
 
-More info about how to install CPAN modules here: 
-   www.cpan.org/modules/INSTALL.html
+   For more details about installing Runtime and its dependencies, see INSTALL file. 
 
-** SYSTEM WISE INSTALLATION 
+** Bug report, questions, comments
 
-1. Install the dependencies using the system package manager.
-For example, on Debian (and proably Ubuntu) you can install the dependencies as follows:
-
-    sudo apt-get install libproc-processtable-perl libparse-recdescent-perl libdigest-md5-file-perl
-
-(Note that on a different distribution, package names may differs.)
-
-2. Move to Runtime source tree.
+Write me at bnegreve@gmail.com
    
-   cd /path/to/runtime/sourcetree
-
-3. Build and install    
-
-   perl Makefile.PL
-   make
-   make test
-   make install 
-
-3'. If you feel like, you can spefy a different prefix path:
-
-   perl Makefile.PL PREFIX=prefix/
-   make
-   make test
-   make install 
-
-** LICENCE INFORMATION
+** Licence Information
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of  Gnu General Public License. For details, see the

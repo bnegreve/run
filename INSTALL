@@ -1,0 +1,59 @@
+Runtime is Copyright (C) 2010-2013, Benjamin Negrevergne.
+
+Runtime installation procedure.
+
+SYSTEMWISE INSTALLATION
+------------------------
+
+If you are a system administrator, you can install perl dependencies
+using the system package manager.
+
+For debian/ubuntu, this should be enough:
+
+    sudo apt-get install perl libproc-processtable-perl libparse-recdescent-perl libdigest-md5-file-perl
+
+2. Move to Runtime source directory.
+   
+   cd /path/to/runtime/directory
+
+3. Build and install    
+
+   perl Makefile.PL
+   make
+   sudo make install
+
+USER LOCAL INSTALLATION
+-----------------------
+
+I.e. for user without permissions. 
+
+You can install Runtime and its dependencies in your home directory using the CPAN script: 
+
+1. Install a writable perl directory for cpan modules
+
+    cpan (default aswers) 
+
+2. Source your shell config file, for example: 
+  
+    source ~/.bashrc
+
+3. Download and install the dependencies
+    
+    cpan Parse::RecDescent Proc::ProcessTable Digest::MD5
+    
+You can now build and install Runtime.
+
+4. Move to Runtime source directory.
+   
+   cd /path/to/runtime/sourcedir
+
+5. Build and install    
+
+   perl Makefile.PL
+   make
+   make install 
+
+More info about how to install CPAN modules here: 
+   www.cpan.org/modules/INSTALL.html
+
+For more general info, write me at bnegreve@gmail.com
