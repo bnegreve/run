@@ -1151,14 +1151,24 @@ sub get_class_from_class_spec{
 sub get_all_classes_from_class_type{
     die if @_ != 2; 
     my ($all_tuples, $class_type) = @_; 
-
-    my %class_hash = (); 
+    
+    my @all_classes = ();
+    my %class_index = (); # to compute class indexes
+    
     foreach my $t (@$all_tuples){
 	my @class_spec = @{tuple_to_class_spec($t, $class_type)}; 
-	my $class_spec_string = tuple_to_string(\@class_spec); 
-	push @{$class_hash{$class_spec_string}}, $t;  
+	my $class_spec_string = tuple_to_string(\@class_spec);
+
+	my $i = $class_index{$class_spec_string};
+	if(not defined $i){
+	    # first instance of the class, attribute an index.
+	    $i = @all_classes; 
+	    $class_index{$class_spec_string} = $i;
+	    $all_classes[$i] = []; 
+	}
+	push @{$all_classes[$i]}, $t; 
     }
-    return \%class_hash; 
+    return \@all_classes; 
 }
 
 # Given a list of tuples that belong to the same file, print the values as lines
@@ -1177,14 +1187,12 @@ sub write_a_result_file{
 	$fh = \*STDOUT; 
     }
 
-    print_file_header($fh, "bin", $info_reported); 
-    my $col_class_hash = get_all_classes_from_class_type($file_class_tuples, 'l'); 
-    foreach my $c (keys %{$col_class_hash}){
-	my $col_class_tuples = $col_class_hash->{$c};
-	my $line_class_hash = get_all_classes_from_class_type($col_class_tuples, 'c'); 
-	foreach my $l (keys %{$line_class_hash}){
-	    my $line_class_tuples = $line_class_hash->{$l};
-	    foreach my $v (@$line_class_tuples){
+    print_file_header($fh, "/bin/ls", $info_reported); 
+    my $all_c_classes = get_all_classes_from_class_type($file_class_tuples, 'l'); 
+    foreach my $c_class (@$all_c_classes){
+	my $all_l_classes = get_all_classes_from_class_type($c_class, 'c'); 
+	foreach my $l_class (@$all_l_classes){
+	    foreach my $v (@$l_class){
 #		    print "v".tuple_to_string($v).":"; 
 		print {$fh} $result_db->get_result($v);
 	    }
@@ -1199,10 +1207,9 @@ sub write_result_files{
     die if @_ != 4; 
     my ($tuples, $result_db, $file_prefix, $info_reported) = @_; 
     if($result_db->is_dirty()){    
-	my $file_class_hash = get_all_classes_from_class_type($tuples, 'f'); 
-	foreach my $k (keys %{$file_class_hash}){
-	    my $file_class_tuples = $file_class_hash->{$k};
-	    write_a_result_file($result_db, $file_class_tuples, $file_prefix, $info_reported); 
+	my $all_file_classes = get_all_classes_from_class_type($tuples, 'f'); 
+	foreach my $f_class (@$all_file_classes){
+	write_a_result_file($result_db, $f_class, $file_prefix, $info_reported); 
 	}
     }
 }
@@ -1215,7 +1222,6 @@ sub startup{
     check_ast($using_ast);
     #print ast_to_string($using_ast);
     populate_output_dir($output_dir);
-
 
 # Creating the databases    
     my $time_db = new Result_Db($output_dir, "time");
