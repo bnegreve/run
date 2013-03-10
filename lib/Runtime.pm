@@ -854,7 +854,8 @@ sub startup{
 
 =head1 Runtime
 
-Runtime - Run experiments and plot the results in a reproducible way.  
+Runtime - Program large scale time/memory mesurements through a command line interface. 
+
 
 =head1 SYNOPSIS
 
@@ -863,16 +864,33 @@ Runtime - Run experiments and plot the results in a reproducible way.
  [-s post_output_script] [-m max_memory_usage (% total)] [ -t timeout value]
  -u using_expression -- command_line_template
  
-=head1 DESCRIPTION
+=head1 DESCRIPTION 
 
-Runtime can be used to measure and plot statistics such as time or
-memory usage on programs with a (possibly large) number of parameters.
+    
+Runtime can be used to program, run, and collect time or memory usage
+statistics for a program with a large number of parameters, or for
+multiple programs. 
 
-For example the following command:
+Given a command line template, and a list of parameters with possible
+values, Runtime does the following.
 
+1. Create the command lines; 
+2. run them, measuring time and memory usage; 
+3. store the measurements results and store programs outputs in files
+   properly named according to user specificatoin (See. Using expression.).
+4. Write a README file containing data about the experiments so it can
+   be easilly reproduced.
+
+=head1 EXAMPLE 
+
+Let's say we want to run the echo program multiple times with
+different parameters.
+We can do it with the following command line:
+    
  $> runtime -p P1 a1 a2 -p P2 b1 b2 b3 -u P1cxP2l -- echo P1 P2
 
-will 
+will:
+
 1. Run the following commands 
 
 echo a1 b1
@@ -882,8 +900,9 @@ echo a2 b1
 echo a2 b2
 echo a2 b3
 
-2. Collect time and memory statistics and store them into file. 
-One value per column for P1, one value per line for P2.
+2. Collect run times and memory usage and store them into file. 
+One value per column for P1, one value per line for P2. 
+(lowercase c stands for column, l for line, and f for file). 
 
 3. Store the results in files, lines and columns according to format
 specifications in the using expression.  In our example P1cxP2l means
@@ -899,6 +918,105 @@ b3      0.00    0.00
 
 (time are 0.00 because executing "echo" is almost instantaneous. )
 
+File can be plotted using Gnuplot for example.
+
+=head1 PARAMETERS 
+
+Each parameter is declared with the -p switch as follows. (Multiple parameters are declared with multiple -p switch.)
+
+-p PARAMETER_NAME value1 value2 value3 ...
+    
+PARAMETER_NAME is the parameter name in capital letter and is followed by all the parameters values (strings) separated by whitespaces.
+
+Notice that this is also possible:
+    
+-p NUM_THREADS `seq 1 32`
+    
+    
+=head1 USING EXPRESSION
+
+The using expression servs two purposes: 
+
+1. It describes how to combine the parameters values to build the
+command lines from the command line template.
+
+2. It describes the format specification to write the results into
+files lines and columns with an adequate format. 
+
+The using expression is composed of parameters names, operators and format descriptors. 
+
+- Parameters names are the names (in capital letters) of the
+  parameters formerly declared.
+
+- Operators are  'x' or '=' 
+
+    'x' (carthesian product)  combines all the values from the left operand with the values from the right operands
+
+for example ('l' and 'c' are format descriptors, you can safely ignore them for now.): 
+
+runtime -p A a1 a2 -p B b1 b2 -u AlxBc -- echo A B C 
+will program the execution of:
+ echo a1 b1
+ echo a1 b2
+ echo a2 b1
+ echo a2 b2
+
+    '='   maps all the values of the right operand to a value of the left operand with respect to the input value order. 
+
+for example:
+
+runtime -p A a1 a2 -p B b1 b2 -u Al=Bc -- echo A B C 
+will program the execution of:
+ echo a1 b1
+ echo a2 b2
+
+You can combine them, and use paranthesis:
+    
+runtime -p A a1 a2 -p B b1 b2 -p C c1 c2 -u "(Ac=Bl)xCf" -- echo A B C 
+
+will program the execution of: 
+ echo a1 b1 c1
+ echo a1 b1 c2
+ echo a2 b2 c1
+ echo a2 b2 c2
+
+Note that if you introduce paranthesis, you must quote the using
+expression.
+
+=head1 FORMAT SPECIFICATION
+
+Format descriptor are associated with parameters to describe how the
+mesurements will be stored in the results files. 
+They can be either 'f', 'l', or 'c'. 
+- f stands for "one value per file" 
+- l stands for "one value per line"
+- c stands for "one value per column"
+
+So:
+runtime -p A a1 a2 -p B b1 b2 -p C c1 c2 -u AfxBcxCl -- echo A B C 
+    
+Will create two files in the time output directory named:
+time_A.a1_B_C and time_A.a2_B_C
+
+Each file contains times measurements layedout as follows:
+# C     B=b1    B=b2
+c1      0.00    0.00
+c2      0.00    0.00
+
+i.e. One value per column for parameter B and one value per line for
+parameter C.
+
+=head1 OUTPUT DIRECTORY
+
+Each execution of runtime creates a directory named after the current date. 
+The directory contains
+ - a time subdirectory,
+ - a mem subdirectory, 
+ - a README file
+ - a usr directory when a user script is provided. 
+
+Each subdirectory contains the reporting files except the output sub
+directory which contains the output of every execution.
 
 =head1 SEE ALSO
 

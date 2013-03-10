@@ -184,7 +184,7 @@ sub check_prod_operator_node{
     
 }
 
-# Update tuples field in non terminal.  eq combines maps each value
+# Update tuples field in non terminal.  eq maps each value
 # ref in the left subtree to a value ref in the right subtree with
 # respect to the input order.  i.e. [<A:0>] [<A:1>] combined with
 # [<B:0>] [<B:1>] becomes [<A:0><B:0>] [<A:1><B:1>].
