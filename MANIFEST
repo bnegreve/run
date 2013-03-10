@@ -1,7 +1,6 @@
 Changes
 lib/Result_Db.pm
 lib/Runtime.pm
-lib/TAGS
 lib/Using.pm
 lib/Using_Ast_Check.pm
 LICENSE
@@ -9,7 +8,6 @@ Makefile.PL
 MANIFEST
 README.org
 INSTALL
-runtime
 script/runtime
 t/Runtime.t
 t/test_exec.c

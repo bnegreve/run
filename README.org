@@ -53,7 +53,7 @@ This will lead to the following layout in the output file.
     b2      0.00    0.00
     b3      0.00    0.00
 
-(time are 0.00 because executing "echo" is almost instantaneous. )
+(time are 0.00 because executing "echo" is almost instantaneous.)
 
 Result files are easy to plot using Gnuplot or other plotting tools.
 
