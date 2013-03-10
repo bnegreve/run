@@ -7,7 +7,7 @@ lib/Using_Ast_Check.pm
 LICENSE
 Makefile.PL
 MANIFEST
-README
+README.org
 runtime
 script/runtime
 t/Runtime.t

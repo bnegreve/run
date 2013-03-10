@@ -1,10 +1,8 @@
 Runtime is Copyright (C) 2010-2013, Benjamin Negrevergne.
 
-Runtime
-====================
+* Runtime
 
-DEPENDENCIES
-------------
+** DEPENDENCIES
 
 Runtime requires the following CPAN modules to be available in your @INC path. 
 
@@ -14,8 +12,7 @@ Runtime requires the following CPAN modules to be available in your @INC path.
 
 See following section for more info about how to install.     
 
-USER LOCAL INSTALLATION
------------------------
+** USER LOCAL INSTALLATION
 
 Before you can run and install Runtime, you need to install a cuple of
 CPAN modules. This can be done without system wide permissions
@@ -49,8 +46,7 @@ You can now build and install Runtime.
 More info about how to install CPAN modules here: 
    www.cpan.org/modules/INSTALL.html
 
-SYSTEM WISE INSTALLATION 
-------------------------
+** SYSTEM WISE INSTALLATION 
 
 1. Install the dependencies using the system package manager.
 For example, on Debian (and proably Ubuntu) you can install the dependencies as follows:
@@ -77,8 +73,7 @@ For example, on Debian (and proably Ubuntu) you can install the dependencies as 
    make test
    make install 
 
-LICENCE INFORMATION
--------------------
+** LICENCE INFORMATION
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of  Gnu General Public License. For details, see the
