@@ -1259,11 +1259,11 @@ sub startup{
 	write_result_files(\@tuples, $time_db,
 			   $output_dir.'time/time_', "Wall clock time (in seconds)");
 	write_result_files(\@tuples, $mem_db,
-			   $output_dir.'mem/mem_', "Reporting: Max memory usage (in MiB)");
+			   $output_dir.'mem/mem_', "Max memory usage (in MiB)");
 	if($post_exec_script_path){
 	    write_result_files(\@tuples, $usr_db,
 			       $output_dir.'usr/usr_',
-			       "Reporting: User script output");
+			       "User script output");
 	}
     }
 
