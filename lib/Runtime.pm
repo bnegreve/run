@@ -155,7 +155,7 @@ sub memory_usage_process_tree{
 
 sub check_memory_usage{
     die if @_ != 0;
-    $mem_usage = memory_usage_process_tree($current_process_pid);
+    my $mem_usage = memory_usage_process_tree($current_process_pid);
 
     if($mem_usage > $max_mem_usage){
 	$max_mem_usage = $mem_usage; 
@@ -382,6 +382,13 @@ sub create_readme_file{
     print README "\n###########################\n";
     print README "Experiment started at $START_TIME on ".get_hostname().".\n";
     print README "$0 ".join(' ',@argv)."\n";
+    
+    print README "\n\n"; 
+    foreach my $cl (@progtotest_command_lines){
+	print README "$cl\n"; 
+    }    
+    print README "\n"; 
+
     close README; 
  }
 
@@ -390,10 +397,6 @@ sub finalize_readme_file{
     open README, ">>$output_dir/README" or die $!;
     open READMETMP, "$output_dir/README.tmp" or die $!;
     print README "\n\n"; 
-    foreach my $cl (@progtotest_command_lines){
-	print README "$cl\n"; 
-    }    
-    print README "\n"; 
 
     while (my $line = <READMETMP>){
 	print README $line; 
@@ -896,10 +899,15 @@ sub startup{
 	}
     }
 
-# Misc
+# Print various info 
     print_info();
     create_readme_file(@argv); 
-
+    
+    foreach my $t (@tuples){
+	my $cl = build_a_command_line($progtotest_command_template, $t);
+	print "$cl\n"; 
+    }
+    
 # Everything seems to be OK. Starting experiments.
     print "\nEverything seems to be OK. Starting experiments.\n\n";
     
