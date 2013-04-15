@@ -126,19 +126,44 @@ sub get_total_memory{
     die "Error: Cannot find out total memory.\n";
 }
 
+sub get_process_table{
+    die if @_ != 0; 
+     return new Proc::ProcessTable;
+}
+
+
+# compute memory of the memory usage .. in kib
+sub memory_usage_process_tree{
+    die if @_ != 1; 
+    my ($pid) = @_;
+    my $t = get_process_table;
+    
+    my $mem = 0; 
+    foreach my $p (@{$t->table}) {
+	if($p->{"pid"} == $pid){ # found current process
+	    $mem += $p->{"rss"} / 1024; # in kib
+	}
+	
+	if($p->{"ppid"} == $pid){ # found child process 
+	    $mem += memory_usage_process_tree($p->{"pid"}); 
+	}
+    }
+    
+    return $mem; 
+
+}
+
 sub check_memory_usage{
     die if @_ != 0;
-    open INPUT, 'ps -eo rss,command -w -w | awk \'/^[0-9]+ [^ ]*'.$current_process_name.'/ && !/awk/ {print $1}\'|'; 
-    my $mem = <INPUT>;
-    close INPUT;
-    if($mem > $max_mem_usage){
-	$max_mem_usage = $mem; 
+    $mem_usage = memory_usage_process_tree($current_process_pid);
+
+    if($mem_usage > $max_mem_usage){
+	$max_mem_usage = $mem_usage; 
     }
     return 0 if($mem_usage_cap == -1); 
 
-
-    if($mem >= $mem_usage_cap){
-	print STDERR "Process $current_process_name uses more than $mem_usage_cap kiB : $mem\n"; 
+    if($mem_usage >= $mem_usage_cap){
+	print STDERR "Process $current_process_name uses more than $mem_usage_cap kiB : $mem_usage\n"; 
 	return 1; 
     }
     return 0; 
@@ -297,10 +322,6 @@ sub output_dir_default_name{
     return $output_dir; 
 }
 
-sub get_process_table{
-    die if @_ != 0; 
-     return new Proc::ProcessTable;
-}
 
 sub kill_process_tree{
     die if @_ != 1; 
