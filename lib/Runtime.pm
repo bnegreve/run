@@ -901,11 +901,16 @@ sub startup{
 
 # Print various info 
     print_info();
-    create_readme_file(@argv); 
-    
+    create_readme_file(@argv);
+    my $num_runs = 0; 
     foreach my $t (@tuples){
 	my $cl = build_a_command_line($progtotest_command_template, $t);
-	print "$cl\n"; 
+	print "$cl\n";
+	$num_runs++; 
+    }
+    if($timeout != -1){
+	my $max_run_time = ($num_runs * $timeout) / 60;
+	print "Maximum run time: $num_runs x $timeout = $max_run_time minutes. (".($max_run_time/60)." hours.)\n"; 
     }
     
 # Everything seems to be OK. Starting experiments.
