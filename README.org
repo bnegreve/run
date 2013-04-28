@@ -1,21 +1,17 @@
-Runtime is Copyright (C) 2010-2013, Benjamin Negrevergne.
-
 * Runtime
 
-Program large scale time/memory mesurements through a command line interface. 
+Program large scale mesurements through a command line interface. 
 
 ** Description 
 
-Runtime is a tool to program, run, collect and pre-format measurement
-about software experiments with a large number of parameters.
+Runtime is a tool to program, run and collect data about a (possibly) large number of program executions. 
+It was designed to rigorously evaluate algorithms whose efficiency depends on a large number of parameters. 
 
-Given a command line template, and a list of parameters with possible
-values, Runtime does the following:
-
-1. Generate the command lines from the template and the parameter values;  
-2. run them, measuring time, memory usage or other statistics;
-3. store the measurements into files according to a format expression so they are easy to read/write/edit/parse or plot (see Using expression.);
-4. backup all the relevant data to interprete the results and *reproduce* the experiment; 
+Features:
+- Automatic generation of the command lines to execute from a template.
+- Pre-formating of results into files according to a user specification. This allows easy interpretation and plotting of the results. 
+- Backuping of the experiment setting to make experiments trivial to reproduce. 
+- ... 
 
 ** Example 
 
