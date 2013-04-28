@@ -6,17 +6,16 @@ Program large scale time/memory mesurements through a command line interface.
 
 ** Description 
 
-Runtime can be used to program, run, and collect time or memory usage
-statistics for a program with a large number of parameters, or for
-multiple programs. 
+Runtime is a tool to program, run, collect and pre-format measurement
+about software experiments with a large number of parameters.
 
 Given a command line template, and a list of parameters with possible
-values, Runtime does the following.
+values, Runtime does the following:
 
-1. Create the command lines; 
-2. run them, measuring time and memory usage; 
-3. store the measurements results and store programs outputs in files properly named according to user specificatoin (See. Using expression.).
-4. Write a README file containing data about the experiments so it can be easilly reproduced.
+1. Generate the command lines from the template and the parameter values;  
+2. run them, measuring time, memory usage or other statistics;
+3. store the measurements into files according to a format expression so they are easy to read/write/edit/parse or plot (see Using expression.);
+4. backup all the relevant data to interprete the results and *reproduce* the experiment; 
 
 ** Example 
 
