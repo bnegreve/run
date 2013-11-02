@@ -594,72 +594,15 @@ sub tuple_to_filename{
     die if @_ != 1; 
     my ($tuple) = @_;
     my $string = "";
-    my @file_dims = ast_get_dimension_indexes($using_ast, "f");
-    my @cols_dims = ast_get_dimension_indexes($using_ast, "c");
-    my @line_dims = ast_get_dimension_indexes($using_ast, "l"); 
-    my $total = @file_dims + @cols_dims + @line_dims; 
-
     my $i = 0; 
-
-    foreach my $d (@file_dims){
-	my $vr = $tuple->[$d]; 
-	$string .= value_ref_get_pname($vr);
-	$string .= '.'.value_ref_get_value($vr);
-	if(++$i != $total){
-	    $string .= '_';
+    foreach my $vr (@{$tuple}){
+	#print(Using_Ast_Check::parameter_value_ref_to_string($vr)."\n");
+	my $pname = value_ref_get_pname($vr); 
+	$string .= $pname; 
+	if(Using_Ast_Check::parameter_get_format_spec($pname) eq 'f'){
+	    $string .= '.'.value_ref_get_value($vr);
 	}
-    }
-    foreach my $d (@cols_dims){
-	my $vr = $tuple->[$d]; 
-	$string .= value_ref_get_pname($vr);
-	if(++$i != $total){
-	    $string .= '_';
-	}
-    }
-    foreach my $d (@line_dims){
-	my $vr = $tuple->[$d]; 
-	$string .= value_ref_get_pname($vr);
-	if(++$i != $total){
-	    $string .= '_';
-	}
-    }
-    return $string; 
-}
-
-# Create a filename from a tuple. 
-# (To store program output.)
-sub tuple_to_output_filename{
-    die if @_ != 1; 
-    my ($tuple) = @_;
-    my $string = "";
-    my @file_dims = ast_get_dimension_indexes($using_ast, "f");
-    my @cols_dims = ast_get_dimension_indexes($using_ast, "c");
-    my @line_dims = ast_get_dimension_indexes($using_ast, "l"); 
-    my $total = @file_dims + @cols_dims + @line_dims; 
-
-    my $i = 0; 
-
-    foreach my $d (@file_dims){
-	my $vr = $tuple->[$d]; 
-	$string .= value_ref_get_pname($vr);
-	$string .= '.'.value_ref_get_value($vr);
-	if(++$i != $total){
-	    $string .= '_';
-	}
-    }
-    foreach my $d (@cols_dims){
-	my $vr = $tuple->[$d]; 
-	$string .= value_ref_get_pname($vr);
-	$string .= '.'.value_ref_get_value($vr);
-	if(++$i != $total){
-	    $string .= '_';
-	}
-    }
-    foreach my $d (@line_dims){
-	my $vr = $tuple->[$d]; 
-	$string .= value_ref_get_pname($vr);
-	$string .= '.'.value_ref_get_value($vr);
-	if(++$i != $total){
+	if(++$i != @{$tuple}){
 	    $string .= '_';
 	}
     }
@@ -669,7 +612,7 @@ sub tuple_to_output_filename{
 sub save_program_output{
     die if @_ != 1; 
     my ($tuple) = @_;
-    my $filename = "$output_dir/output/".tuple_to_output_filename($tuple).".out";
+    my $filename = "$output_dir/output/".tuple_to_filename($tuple).".out";
     system ("mv $tmp_out $filename");
 }
 
