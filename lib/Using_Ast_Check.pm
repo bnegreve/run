@@ -4,7 +4,7 @@ use 5.012;
 use strict;
 use Switch; 
 use Exporter 'import';
-our @EXPORT = qw(declare_parameter check_ast params_to_string ast_get_tuples value_ref_get_pname value_ref_get_value  ast_get_dimension_indexes  all_parameter_names_in_std_order parameter_get_format_spec tuple_to_string); 
+our @EXPORT = qw(declare_parameter check_ast params_to_string ast_get_tuples value_ref_get_pname value_ref_get_value all_parameter_names_in_std_order parameter_get_format_spec tuple_to_string); 
 
 # Context check ast produced by Using.pm
 
@@ -64,23 +64,6 @@ sub check_ast{
     my @all_parameters = build_format_specification($ast_node, "");
     assign_format_spec($ast_node->{value}->{decor_string}, \@all_parameters); 
     compute_std_parameter_order(); 
-}
-
-# Return an array containing the index (in the tuples) of all the
-# parameters with a given dimension string.
-sub ast_get_dimension_indexes{
-    die if @_ != 2; 
-    my ($ast, $dim_string) = @_; 
-
-    my $format_spec = $ast->{value}->{decor_string};
-    
-    my @dims = ();
-    for(my $i = 0; $i <= length $format_spec; $i++){
-	if( (substr ($format_spec, $i, 1)) eq $dim_string){
-	    push @dims, $i;
-	}
-    }
-    return @dims; 
 }
 
 # Returns a string representation of a set of tuple.
