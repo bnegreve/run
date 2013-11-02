@@ -126,7 +126,8 @@ sub ast_create_parameter_node{
 sub ast_create_eq_operator_node{
     die if @_ != 2;
     my ($left, $right) = @_;
-    return {type => "eq_operator", left => $left, right => $right, value => {}}; 
+    return {type => "eq_operator", left => $left, right => $right, 
+	    value => { decor_string => ""}}; 
 }
 
 # Create and return a node for the prod operator. The node is a hashmap
@@ -136,7 +137,8 @@ sub ast_create_eq_operator_node{
 sub ast_create_prod_operator_node{
     die if @_ != 2;
     my ($left, $right) = @_;
-    return {type => "prod_operator", left => $left, right => $right, value => {}}; 
+    return {type => "prod_operator", left => $left, right => $right,
+	    value => { decor_string => ""}}; 
 }
 
 #  Append decor. 

@@ -822,7 +822,7 @@ sub startup{
     parse_program_arguments(\@argv);
     #print ast_to_string($using_ast);
     check_ast($using_ast);
-    print ast_to_string($using_ast);
+    #print ast_to_string($using_ast);
     populate_output_dir($output_dir);
 
 # Creating the databases    
@@ -834,7 +834,7 @@ sub startup{
 
 # Fetching the tuples and preparing the databses
     my @tuples = @{ast_get_tuples($using_ast)};
-    print Using_Ast_Check::tuples_to_string(\@tuples)."\n"; 
+    #print Using_Ast_Check::tuples_to_string(\@tuples)."\n"; 
     foreach my $t (@tuples){
 	$time_db->result_db_add_tuple($t);
 	$mem_db->result_db_add_tuple($t);

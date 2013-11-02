@@ -46,6 +46,11 @@ sub fatal_error{
     exit(1); 
 }
 
+sub warning{
+    die if @_ != 1; 
+    print STDERR 'Warning: '.$_[0]."\n"; 
+}
+
 # Declares a new parameter and its domain size.  Undeclared parameters
 # occuring in the using expression will raise errors.
 sub declare_parameter{
@@ -65,8 +70,8 @@ sub check_ast{
     die if @_ != 1;
     my ($ast_node) = @_; 
     check_ast_node($ast_node);
-    build_parameter_list($ast_node, "");
-    my @param_ids = keys %param_names; 
+    build_parameter_list($ast_node, "U"); # U stands for undifined decor string
+    my @param_ids = sort keys %param_names; 
     assign_format_spec($ast_node->{value}->{decor_string}, \@param_ids); 
     compute_std_parameter_order(); 
 }
@@ -272,9 +277,7 @@ sub build_parameter_list{
     my ($ast_node, $parent_spec) = @_;
     my $value = $ast_node->{value};
 
-    if(defined $parent_spec
-       and (defined $value->{decor_string})
-       and ($value->{decor_string} eq "")){
+    if($value->{decor_string} eq ""){
 	$value->{decor_string} = $parent_spec; 
     }
     
@@ -304,26 +307,33 @@ sub compute_std_parameter_order{
 }
 
 # Assign format spec to parameter names using the format specification
-# string at the root of the ast.  Essentially 'parse' the string which
-# describes the parameter format specification in the same order as
-# parameters occurs in the using expression and reassign it to
-# parameters names thanks to the %parameters_format_spec hash.
+# string at the root of the ast.
 sub assign_format_spec{
     die if @_ != 2; 
     my ($format_spec_string, $param_ids) = @_;
+    die if (length ($format_spec_string) < @$param_ids); 
 
     my $i; 
-    for($i = 0; $i < length $format_spec_string; $i++){
+    my $last_char = 'U'; 
+#    for($i = $#$param_ids+1; $i > 0; $i--){
+    for($i = scalar(@$param_ids)-1; $i >= 0; $i--){
 	my $format_char = substr $format_spec_string, $i, 1;
-	$param_format_spec{$param_ids->[$i]} = $format_char; 
-    }
-
-    # If not specified, assigned format specification in a round robin fashion 
-    for(; $i < @$param_ids; $i++){
-	my $format_char = 'f'; 
-	$format_char = 'c' if($i % 3 == 0);
-	$format_char = 'l' if($i % 3 == 1); 
-	$param_format_spec{$param_ids->[$i]} = $format_char; 
+	if($format_char eq 'U'){  
+	    # If undefined, assign format specification in a round robin fashion 
+	    if($last_char eq 'U'){ $format_char = 'l'; }
+	    else{
+		switch ($last_char){
+		    case /l/ {$format_char = 'c';}
+		    case /c/ {$format_char = 'f';}
+		    case /f/ {$format_char = 'l';}
+		}
+	    }
+	    warning('No format specification for parameter '
+		    .$param_names{$param_ids->[$i]}
+		    .' ; automatically assigned to \''.$format_char.'\'.' ); 
+	}
+	$param_format_spec{$param_ids->[$i]} = $format_char;
+	$last_char = $format_char; 
     }
 }
 
