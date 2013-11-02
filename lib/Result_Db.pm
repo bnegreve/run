@@ -159,7 +159,7 @@ sub get_result{
 sub serialize_tuple{
     die if @_ != 1; 
     my ($tuple) = @_;
-    return Using_Ast_Check::tuple_to_string($tuple); 
+    return Using_Ast_Check::tuple_to_cannonical_string($tuple); 
 }
 
 sub unserialize_tuple{

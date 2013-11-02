@@ -96,6 +96,20 @@ sub tuple_to_string{
 }
 
 
+# Returns a cannonical representation of a tuple
+sub tuple_to_cannonical_string{
+    die if @_ != 1;
+    my $tuple = $_[0];
+    my $string = "";
+    $string.= "[ ";
+    foreach my $vr (@{$tuple}){
+	$string.= '<'.value_ref_get_pname($vr).'='.value_ref_get_value($vr).'> '; 
+    }
+    $string.= "] ";
+    return $string; 
+}
+
+
 # parameter value refs are arrays <parameter name, index in the value space>
 sub parameter_value_ref_to_string{
     die if @_ != 1; 
