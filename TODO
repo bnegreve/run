@@ -1,0 +1,13 @@
+- Fix the sorting function in compute_param_std_order so that in sorts
+   occording to occurrence id where it should sort according to
+   parameter name 
+
+- Add switch to restart from a given result set
+
+- Add terminasion time at the end of experiments 
+
+- add link to last experiments
+
+- Add monotonic/antimonotonic decoration 
+
+- re-add listing of command lines executed in the README
