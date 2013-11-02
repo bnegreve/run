@@ -597,9 +597,10 @@ sub tuple_to_filename{
     my $i = 0; 
     foreach my $vr (@{$tuple}){
 	#print(Using_Ast_Check::parameter_value_ref_to_string($vr)."\n");
-	my $pname = value_ref_get_pname($vr); 
+	my $pname = value_ref_get_pname($vr);
+	my $param_id = value_ref_get_param_id($vr); 
 	$string .= $pname; 
-	if(Using_Ast_Check::parameter_get_format_spec($pname) eq 'f'){
+	if(Using_Ast_Check::parameter_get_format_spec($param_id) eq 'f'){
 	    $string .= '.'.value_ref_get_value($vr);
 	}
 	if(++$i != @{$tuple}){
@@ -636,12 +637,12 @@ sub tuple_to_class_spec{
 
     my @class_spec = (); 
     foreach my $vr (@$tuple){
-	if(parameter_get_format_spec(value_ref_get_pname($vr)) 
+	if(parameter_get_format_spec(value_ref_get_param_id($vr)) 
 	   eq $class_type){
 	    push @class_spec, $vr; 
 	}
 	else{
-	    push @class_spec, ["",""];
+	    push @class_spec, ["","",""];
 	}
     }
 
@@ -747,8 +748,7 @@ sub get_value_refs_from_format_spec{
 
     my @vrefs = (); 
     foreach my $vr (@$tuple){
-	my $pname = value_ref_get_pname($vr); 
-	if(parameter_get_format_spec($pname) eq $format_spec){
+	if(parameter_get_format_spec(value_ref_get_param_id($vr)) eq $format_spec){
 	    push @vrefs, $vr; 
 	}
     }
@@ -822,7 +822,7 @@ sub startup{
     parse_program_arguments(\@argv);
     #print ast_to_string($using_ast);
     check_ast($using_ast);
-    #print ast_to_string($using_ast);
+    print ast_to_string($using_ast);
     populate_output_dir($output_dir);
 
 # Creating the databases    
@@ -834,6 +834,7 @@ sub startup{
 
 # Fetching the tuples and preparing the databses
     my @tuples = @{ast_get_tuples($using_ast)};
+    print Using_Ast_Check::tuples_to_string(\@tuples)."\n"; 
     foreach my $t (@tuples){
 	$time_db->result_db_add_tuple($t);
 	$mem_db->result_db_add_tuple($t);
@@ -855,7 +856,9 @@ sub startup{
 	my $max_run_time = ($num_runs * $timeout) / 60;
 	print "Maximum run time: $num_runs x $timeout = $max_run_time minutes. (".($max_run_time/60)." hours.)\n"; 
     }
+
     
+
 # Everything seems to be OK. Starting experiments.
     print "\nEverything seems to be OK. Starting experiments.\n\n";
     

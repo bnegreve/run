@@ -4,17 +4,20 @@ use 5.012;
 use strict;
 use Switch; 
 use Exporter 'import';
-our @EXPORT = qw(declare_parameter check_ast params_to_string ast_get_tuples value_ref_get_pname value_ref_get_value all_parameter_names_in_std_order parameter_get_format_spec tuple_to_string); 
+our @EXPORT = qw(declare_parameter check_ast params_to_string ast_get_tuples value_ref_get_pname value_ref_get_value value_ref_get_param_id all_parameter_names_in_std_order parameter_get_format_spec tuple_to_string); 
 
 # Context check ast produced by Using.pm
 
-# all the parameter names with their value space
+# parameter names with their value space
 our %params = ();
 
-# binds parameter names with format specifications (f, c, l)
+# parameter occurrence ids with format specifications (f, c, l)
+# (declared parameter are different from parameter occurrence id in
+# the using expression since the same parameter can occur multiple
+# time in the using expression)
 our %params_format_spec = ();
 
-# binds parameter names with indexes that are assigned w.r.t. a unique
+# binds parameter occurrence ids with indexes that are assigned w.r.t. a unique
 # order (lexicographical order over parameter names).
 our %params_std_order = ();
 
@@ -97,7 +100,7 @@ sub tuple_to_string{
 sub parameter_value_ref_to_string{
     die if @_ != 1; 
     my @vr = @{$_[0]}; 
-    return "<$vr[0]:$vr[1]> "; 
+    return "<$vr[0]:$vr[1]:$vr[2]> "; #REM
 }
 
 # Returns parameter name of value reference. 
@@ -114,6 +117,13 @@ sub value_ref_get_value{
     return $params{$vr->[0]}->[$vr->[1]]; 
 }
 
+# Returns parameter id from value ref. 
+sub value_ref_get_param_id{
+    die if @_ != 1;
+    my $vr = $_[0]; 
+    return $vr->[2]; #REM
+}
+
 # Check parameter node. 
 sub check_parameter_node{
     die if @_ != 1;
@@ -122,8 +132,7 @@ sub check_parameter_node{
 
     if (defined $params{$value->{name}}){
 	my $i = 0;
-	my $size = @params{$value->{name}};
-	my @tmp = map { [[$value->{name}, $i++]] } @{$params{$value->{name}}};
+	my @tmp = map { [[$value->{name}, $i++, $value->{id}]] } @{$params{$value->{name}}};
 	$value->{tuples} = \@tmp; 
     }
     else{
@@ -212,8 +221,8 @@ sub tuple_in_std_order{
     # FIXME replace by inplace sort 
     my @ordered_tuple = (); 
     foreach my $vr (@{$tuple}){
-	my $pname = value_ref_get_pname($vr);
-	$ordered_tuple[$params_std_order{$pname}] = $vr; 
+	my $pid = value_ref_get_param_id($vr);
+	$ordered_tuple[$params_std_order{$pid}] = $vr; 
     }
     return \@ordered_tuple; 
 }
@@ -277,7 +286,7 @@ sub build_format_specification{
     } else{
 	# we are on a terminal node
 	my @child_parameters; 
-	push @child_parameters, $ast_node->{value}->{name};
+	push @child_parameters, $ast_node->{value}->{id};
 	return @child_parameters; 
     }
 
@@ -288,10 +297,10 @@ sub build_format_specification{
 # (w.r.t. lex order on parameter names) in $params_std_order{name}; 
 sub compute_std_parameter_order{
     die if @_ != 0;
-    my @sorted = sort keys %params;
+    my @sorted = sort keys %params_format_spec;
     my $i = 0; 
-    foreach my $p_name (@sorted){
-	$params_std_order{$p_name} = $i++; 
+    foreach my $param_id (@sorted){
+	$params_std_order{$param_id} = $i++; 
     }
 }
 
@@ -302,18 +311,28 @@ sub compute_std_parameter_order{
 # parameters names thanks to the %parameters_format_spec hash.
 sub assign_format_spec{
     die if @_ != 2; 
-    my ($format_spec_string, $all_parameters) = @_;
-    for(my $i = 0; $i < length $format_spec_string; $i++){
+    my ($format_spec_string, $all_parameters_ids) = @_;
+
+    my $i; 
+    for($i = 0; $i < length $format_spec_string; $i++){
 	my $format_char = substr $format_spec_string, $i, 1;
-	$params_format_spec{$all_parameters->[$i]} = $format_char; 
+	$params_format_spec{$all_parameters_ids->[$i]} = $format_char; 
+    }
+
+    # If not specified, assigned format specification in a round robin fashion 
+    for(; $i < @$all_parameters_ids; $i++){
+	my $format_char = 'f'; 
+	$format_char = 'c' if($i % 3 == 0);
+	$format_char = 'l' if($i % 3 == 1); 
+	$params_format_spec{$all_parameters_ids->[$i]} = $format_char; 
     }
 }
 
 sub parameter_get_format_spec{
     die if @_ != 1; 
-    my ($pname) = @_;
-    die unless defined $params_format_spec{$pname}; 
-    return $params_format_spec{$pname};
+    my ($param_id) = @_;
+    die unless defined $params_format_spec{$param_id}; 
+    return $params_format_spec{$param_id};
 }
 
 sub get_num_parameters{

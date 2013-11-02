@@ -8,6 +8,7 @@ our @EXPORT = qw(ast_to_string parse);
 ## globals ##
 use Parse::RecDescent;
 $::RD_HINT = 1; 
+our $next_pid = 0;
 
 # This module parses using expression and build an abstract syntax
 # tree (ast).  Each node in the ast is a hash with a type key that
@@ -99,14 +100,23 @@ sub ast_to_string_subtree{
     return $string; 
 }
 
-# Create and return a parameter node. The node is a hashmap with a
-# type key set to "parameter" and a value key bound to a another
-# hashmap.  The value hashmap initially contains a name key with the
-# parameter name and an empty decor string.
+# Create and return a parameter node. The node is a hashmap with two
+# entries
+# - one 'type' entry set to 'parameter' 
+# - one 'value' entry
+# that pointing to another hashmap. 
+# The value hashmap contains 
+# - an 'id' entry that contain a unique parameter identifier
+# - a 'name' entry containing the name of the parameter and an
+# - a 'decor' entry (initially set to "") that will ultimatly contain
+# various data such as the format specification for this parameter. 
 sub ast_create_parameter_node{
     die if @_ != 1;
     my ($name) = @_;
-    return {type => "parameter", value => {name => $name, decor_string => ""}}; 
+    return {type => "parameter", 
+	    value => {id => $next_pid++, 
+		      name => $name,
+		      decor_string => ""}}; 
 }
 
 # Create and return a node for the eq operator. The node is a hashmap
