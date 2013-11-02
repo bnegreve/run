@@ -8,18 +8,19 @@ our @EXPORT = qw(declare_parameter check_ast params_to_string ast_get_tuples val
 
 # Context check ast produced by Using.pm
 
-# parameter names with their value space
+# Maps parameter *names* with their value space
 our %params = ();
 
-# parameter occurrence ids with format specifications (f, c, l)
-# (declared parameter are different from parameter occurrence id in
-# the using expression since the same parameter can occur multiple
-# time in the using expression)
-our %params_format_spec = ();
+# Maps parameter ids to names. 
+# NOTE: Since the same parameter can occur multiple times in the using
+# expression, multiple parameter ids can map to the same name.
+our %param_names = (); 
 
-# binds parameter occurrence ids with indexes that are assigned w.r.t. a unique
-# order (lexicographical order over parameter names).
-our %params_std_order = ();
+# Maps parameter ids to format specifictions (i.e. f(ile), c(olumn) or l(ine))
+our %param_format_spec = ();
+
+# Maps parameter ids to index in a cannonical order (lex order over parameter names.) 
+our %param_std_order = ();
 
 our $errors = 0; 
 
@@ -64,8 +65,9 @@ sub check_ast{
     die if @_ != 1;
     my ($ast_node) = @_; 
     check_ast_node($ast_node);
-    my @all_parameters = build_format_specification($ast_node, "");
-    assign_format_spec($ast_node->{value}->{decor_string}, \@all_parameters); 
+    build_parameter_list($ast_node, "");
+    my @param_ids = keys %param_names; 
+    assign_format_spec($ast_node->{value}->{decor_string}, \@param_ids); 
     compute_std_parameter_order(); 
 }
 
@@ -114,28 +116,29 @@ sub tuple_to_cannonical_string{
 sub parameter_value_ref_to_string{
     die if @_ != 1; 
     my @vr = @{$_[0]}; 
-    return "<$vr[0]:$vr[1]:$vr[2]> "; #REM
+    return "<$vr[0]:$vr[1]> "; 
 }
 
 # Returns parameter name of value reference. 
 sub value_ref_get_pname{
     die if @_ != 1;
     my $vr = $_[0]; 
-    return $vr->[0];
+    return $param_names{$vr->[0]};
 }
 
 # Returns the value associated with a value ref. 
 sub value_ref_get_value{
     die if @_ != 1;
-    my $vr = $_[0]; 
-    return $params{$vr->[0]}->[$vr->[1]]; 
+    my $vr = $_[0];
+    my $pname = value_ref_get_pname($vr); 
+    return $params{$pname}->[$vr->[1]]; 
 }
 
 # Returns parameter id from value ref. 
 sub value_ref_get_param_id{
     die if @_ != 1;
     my $vr = $_[0]; 
-    return $vr->[2]; #REM
+    return $vr->[0]; 
 }
 
 # Check parameter node. 
@@ -146,7 +149,7 @@ sub check_parameter_node{
 
     if (defined $params{$value->{name}}){
 	my $i = 0;
-	my @tmp = map { [[$value->{name}, $i++, $value->{id}]] } @{$params{$value->{name}}};
+	my @tmp = map { [[$value->{id}, $i++]] } @{$params{$value->{name}}};
 	$value->{tuples} = \@tmp; 
     }
     else{
@@ -236,14 +239,14 @@ sub tuple_in_std_order{
     my @ordered_tuple = (); 
     foreach my $vr (@{$tuple}){
 	my $pid = value_ref_get_param_id($vr);
-	$ordered_tuple[$params_std_order{$pid}] = $vr; 
+	$ordered_tuple[$param_std_order{$pid}] = $vr; 
     }
     return \@ordered_tuple; 
 }
 
 # get all parameter names in std order ... yep!
 sub all_parameter_names_in_std_order{
-    return sort {$params_std_order{$a} <=> $params_std_order{$b}} keys %params_std_order; 
+    return sort {$param_std_order{$a} <=> $param_std_order{$b}} keys %param_std_order; 
 }
 
 
@@ -263,19 +266,8 @@ sub check_ast_node{
     }
 }
 
-# Recursive function that interates through the ast and builds the
-# parameter format specification string.  This string string contains
-# one char per parameter for each parameter how results will ultimatly
-# be stored in the file. The ith char corresponds to the ith parameter
-# w.r.t. the parameter order in the using expression. A 'f' char means
-# one value per file for this parameter, a 'c' means one value per
-# column in the file and a 'l' well, one value per line.
-#
-# This function is also in charge of assigning a format spec for a
-# parameter when no format is provided or when multiple format
-# specification are provided for the same parameter. 
-# 
-sub build_format_specification{
+# Build the list of all the parameters and assign decorations 
+sub build_parameter_list{
     die if @_ != 2; 
     my ($ast_node, $parent_spec) = @_;
     my $value = $ast_node->{value};
@@ -287,34 +279,27 @@ sub build_format_specification{
     }
     
     if (defined $ast_node->{left}){
-	my @left_child_parameters = 
-	build_format_specification($ast_node->{left}, $value->{decor_string});
-	my @right_child_parameters = 
-	build_format_specification($ast_node->{right}, $value->{decor_string});
+	# internal node of the ast
+	build_parameter_list($ast_node->{left}, $value->{decor_string});
+	build_parameter_list($ast_node->{right}, $value->{decor_string});
 
 	$value->{decor_string} = ""
 	    .$ast_node->{left}->{value}->{decor_string}
 	.$ast_node->{right}->{value}->{decor_string};
-
-	return (@left_child_parameters, @right_child_parameters); 
     } else{
 	# we are on a terminal node
-	my @child_parameters; 
-	push @child_parameters, $ast_node->{value}->{id};
-	return @child_parameters; 
+	$param_names{$ast_node->{value}->{id}} = $ast_node->{value}->{name}; 
     }
-
-
 }
 
 # Compute lexicographical order for parameters and store parameter index
-# (w.r.t. lex order on parameter names) in $params_std_order{name}; 
+# (w.r.t. lex order on parameter names) in $param_std_order{name}; 
 sub compute_std_parameter_order{
     die if @_ != 0;
-    my @sorted = sort keys %params_format_spec;
+    my @sorted = sort keys %param_format_spec;
     my $i = 0; 
     foreach my $param_id (@sorted){
-	$params_std_order{$param_id} = $i++; 
+	$param_std_order{$param_id} = $i++; 
     }
 }
 
@@ -325,28 +310,28 @@ sub compute_std_parameter_order{
 # parameters names thanks to the %parameters_format_spec hash.
 sub assign_format_spec{
     die if @_ != 2; 
-    my ($format_spec_string, $all_parameters_ids) = @_;
+    my ($format_spec_string, $param_ids) = @_;
 
     my $i; 
     for($i = 0; $i < length $format_spec_string; $i++){
 	my $format_char = substr $format_spec_string, $i, 1;
-	$params_format_spec{$all_parameters_ids->[$i]} = $format_char; 
+	$param_format_spec{$param_ids->[$i]} = $format_char; 
     }
 
     # If not specified, assigned format specification in a round robin fashion 
-    for(; $i < @$all_parameters_ids; $i++){
+    for(; $i < @$param_ids; $i++){
 	my $format_char = 'f'; 
 	$format_char = 'c' if($i % 3 == 0);
 	$format_char = 'l' if($i % 3 == 1); 
-	$params_format_spec{$all_parameters_ids->[$i]} = $format_char; 
+	$param_format_spec{$param_ids->[$i]} = $format_char; 
     }
 }
 
 sub parameter_get_format_spec{
     die if @_ != 1; 
     my ($param_id) = @_;
-    die unless defined $params_format_spec{$param_id}; 
-    return $params_format_spec{$param_id};
+    die unless defined $param_format_spec{$param_id}; 
+    return $param_format_spec{$param_id};
 }
 
 sub get_num_parameters{
