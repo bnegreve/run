@@ -184,6 +184,16 @@ sub output_dir_default_name{
     return $output_dir; 
 }
 
+
+sub init_temp_file{
+    die if @_ != 0;
+    my $out_fh; 
+    ($out_fh, $tmp_out) = create_temp_file("tmp");
+    close($out_fh);
+    ($out_fh, $time_tmp_file) = create_temp_file("tmp_time");
+    close($out_fh); 
+}
+
 sub init{
     die if @_ != 0; 
 
@@ -224,12 +234,7 @@ sub init{
     $output_dir = output_dir_default_name();
     
 # preparing tmp file to store program outputs.
-    (my $out_fh, $tmp_out) = create_temp_file("tmp");
-    print "CREATING $tmp_out \n"; 
-    close($out_fh);
-    ($out_fh, $time_tmp_file) = create_temp_file("tmp_time");
-    close($out_fh); 
-
+    init_temp_file(); 
 }
 
 sub create_readme_file{
@@ -473,6 +478,7 @@ sub save_program_output{
     my ($tuple) = @_;
     my $filename = "$output_dir/output/".tuple_to_filename($tuple).".out";
     system ("mv $tmp_out $filename");
+    init_temp_file(); 
 }
 
 # Returns a class specification from a tuple. A class specification is
