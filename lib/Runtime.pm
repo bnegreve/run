@@ -680,6 +680,21 @@ sub write_result_files{
     }
 }
 
+
+sub finalize{
+    die if @_ != 0;
+    finalize_readme_file();
+    print "Expeperiment finished at ".date_string()."\n";
+    if( not (-e 'last_run') or 
+	is_runtime_output_dir("last_run")){
+	system('rm -f last_run'); 
+	create_link($output_dir, "last_run"); 
+    }
+    else{
+	warning_output("'last_run' exists and does not seem to be a link to a runtime output directory. Link not updated");
+    }
+}
+
 sub startup{
     my @argv = @_; 
     init(); 
@@ -748,9 +763,7 @@ sub startup{
 	save_program_output($t); 
     }
 
-# Finalize
-    finalize_readme_file(); 
-
+    finalize(); 
 }
 
 =head1 Runtime

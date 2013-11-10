@@ -4,7 +4,7 @@ use 5.012;
 use strict;
 use Exporter 'import';
 our @EXPORT = qw(md5_file date_string data_string_ymd get_total_memory get_process_table 
-memory_usage_process_tree check_memory_usage get_memory_usage reset_memory_usage check_timeout get_hostname extract_process_name extract_bin_filename kill_process_tree create_temp_file); 
+memory_usage_process_tree check_memory_usage get_memory_usage reset_memory_usage check_timeout get_hostname extract_process_name extract_bin_filename kill_process_tree create_temp_file is_runtime_output_dir create_link); 
 
 use strict;
 use warnings;
@@ -179,4 +179,19 @@ sub create_temp_file{
     return tempfile('/tmp/runtime_'.$filename.'_XXXX');
 }
 
+# return true  if path seems to be a runtime output directory 
+sub is_runtime_output_dir{
+    die if @_ != 1;
+    my ($path) = @_; 
+    if( -e "$path/.results_time.txt") {
+	return 1; 
+    }
+    return 0; 
+}
+
+sub create_link{
+    die if @_ != 2; 
+    my ($target, $link_name) = @_; 
+    system ("ln -s $target $link_name"); 
+}
 1; 

@@ -4,20 +4,21 @@
 
 - Add switch to restart from a given result set
 
-- Add terminasion time at the end of experiments 
-
-- add link to last experiments
-
 - Add monotonic/antimonotonic decoration 
 
 - re-add listing of command lines executed in the README
 
 - fix this warning: Warning: timout value (1 sec) is below timeout resolution (1 sec).
 
-
-- FIXED bug: 
+DONE: 
+- Fix bug: 
  runtime -t 1   -p TIME 1 2 -p MESSAGE hello world -u TIMExMESSAGE --
    "sleep TIME && echo MESSAGE"
 ... 
 
 -> mv: cannot stat ‘/tmp/runtime_tmp_GV_F’: No such file or directory
+
+- add link to last experiments
+
+   - Add terminasion time at the end of experiments 
+
