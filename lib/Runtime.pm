@@ -11,14 +11,10 @@ our @EXPORT = qw(startup);
 
 our $VERSION = '0.01';
 
-
-
-use File::Temp qw/ tempfile/;
-use Proc::ProcessTable;
-
 use Using;
 use Using_Ast_Check;
 use Result_Db;
+use System_API;
 use vars qw(%parameter_value_space);
 
 our $using_ast; 
@@ -53,14 +49,14 @@ my $output_dir;
 my $tmp_out; # temporary out file.
 my $time_tmp_file; # temporary out file for time process
 my $post_exec_script_path; 
-my $max_mem_usage = 0; 
 #my $current_bin_filename; 
 my %params;
 my $progtotest_command_template;
 my @progtotest_command_lines; 
 
-our $errors = 0; 
 our $runtime_bin_path = $0; 
+
+our $errors = 0; 
 
 sub error_args{
     die if @_ != 1; 
@@ -84,102 +80,6 @@ sub warning_build_command_line{
     $errors++;
 }
 
-sub md5_file{
-    die if @_ != 1; 
-    my $file = $_[0];
-    use Digest::MD5;
-    
-    my $md5; 
-    if(open(FILE, $file)){
-    binmode(FILE);
-    $md5 = Digest::MD5->new->addfile(*FILE)->hexdigest;
-    }
-    else{
-	warning_output "Cannot compute binary md5 file for '$file': ".$!;
-	$md5 = "(Cannot compute md5 for file: '$file')"; 
-    }
-    return $md5; 
-}
-
-sub date_string{
-    use POSIX qw/strftime/;
-    return strftime('%F %T',localtime); 
-}
-
-sub date_string_ymd{
-    use POSIX qw/strftime/;
-    return strftime('%F',localtime); 
-}
-
-
-# Warning: may die; 
-sub get_total_memory{
-    die if @_ != 0; 
-    
-    open MEMINFO, "/proc/meminfo" or die $!; 
-    while (my $line = <MEMINFO>){
-	if($line =~ /MemTotal.*?([0-9]+).*/){
-	    close MEMINFO; 
-	    return $1; 
-	}
-    }
-    die "Error: Cannot find out total memory.\n";
-}
-
-sub get_process_table{
-    die if @_ != 0; 
-     return new Proc::ProcessTable;
-}
-
-
-# compute memory of the memory usage .. in kib
-sub memory_usage_process_tree{
-    die if @_ != 1; 
-    my ($pid) = @_;
-    my $t = get_process_table;
-    
-    my $mem = 0; 
-    foreach my $p (@{$t->table}) {
-	if($p->{"pid"} == $pid){ # found current process
-	    $mem += $p->{"rss"} / 1024; # in kib
-	}
-	
-	if($p->{"ppid"} == $pid){ # found child process 
-	    $mem += memory_usage_process_tree($p->{"pid"}); 
-	}
-    }
-    
-    return $mem; 
-
-}
-
-sub check_memory_usage{
-    die if @_ != 0;
-    my $mem_usage = memory_usage_process_tree($current_process_pid);
-
-    if($mem_usage > $max_mem_usage){
-	$max_mem_usage = $mem_usage; 
-    }
-    return 0 if($mem_usage_cap == -1); 
-
-    if($mem_usage >= $mem_usage_cap){
-	print STDERR "Process $current_process_name uses more than $mem_usage_cap kiB : $mem_usage\n"; 
-	return 1; 
-    }
-    return 0; 
-}
-
-sub check_timeout{
-    die if @_ != 0; 
-    return 0 if($timeout == -1);
-    
-    if($current_time >= $timeout){
-	print STDERR "Process $current_process_name have been running for longer that $timeout sec (+- $CYCLE_LEN sec)\n"; 
-	return 1; 
-    }
-    return 0; 
-}
-
 sub run_child{
     die if (@_ != 1); 
     my $command = $_[0];
@@ -190,7 +90,7 @@ sub run_child{
     $current_process_err = "ERR_UKN";
     my $child_pid = fork;
     $current_process_pid = $child_pid;
-    $max_mem_usage = 0; #reset mem usage 
+    reset_memory_usage(); 
 
     if (not $child_pid) {
 	print "Executing: $command\n";
@@ -224,18 +124,9 @@ sub run_child{
 	    print STDERR "Warning: cannot run post exec user script \'$post_exec_script_path\': ".$!.".\n"; 
 	}
     }
-    return ($time, $max_mem_usage/1024, $pes_output); 
+    return ($time, (get_memory_usage())/1024, $pes_output); 
 }
 
-
-
-
-sub get_hostname{
-    die if @_ != 0; 
-    use Sys::Hostname;
-    my $hostname = hostname; 
-    return $hostname; 
-}
 
 # print a description in the file handled by fh
 # bin is the binary file name executed
@@ -282,35 +173,6 @@ sub print_info(){
     print_progtest_command_lines();
 }
 
-# Extract process name from a command line. 
-sub extract_process_name{
-    die if @_ != 1; 
-    my ($command) = @_;
-    my $process_name = "unknwown_process"; 
-
-    if( $command =~ /.*?\/?([\w\-]+)\s/gx){
-	$process_name = $1;
-    }
-    else {
-	print STDERR "Error: cannot parse process name \n"; 
-    }
-    return $process_name; 
-}
-
-# Extract bin file name from a command line. 
-sub extract_bin_filename{
-    die if @_ != 1; 
-    my ($command) = @_;
-    my $process_name = "unknwown_process"; 
-
-    if( $command =~ /(.*?\/?[\w\-]+)\s/gx){
-	$process_name = $1;
-    }
-    else {
-	print STDERR "Error: cannot parse process name \n"; 
-    }
-    return $process_name; 
-}
 
 sub output_dir_default_name{
     die if @_ != 0; 
@@ -322,20 +184,6 @@ sub output_dir_default_name{
     return $output_dir; 
 }
 
-
-sub kill_process_tree{
-    die if @_ != 1; 
-    my ($pid) = @_;
-    my $t = get_process_table;
-    
-    foreach my $p (@{$t->table}) {
-	if($p->{"ppid"} == $pid){
-	    kill_process_tree($p->{"pid"}); 
-	}
-    }
-    kill 9, $pid; 
-}
-
 sub init{
     die if @_ != 0; 
 
@@ -345,9 +193,18 @@ sub init{
 # initialize timer for the control loop
     $SIG {ALRM} = sub {
 	$current_time+=$CYCLE_LEN; 
-	my $mu = check_memory_usage();
-	my $tu = check_timeout(); 
+	my $mu = check_memory_usage($current_process_pid, $mem_usage_cap);
+	my $tu = check_timeout($current_time, $timeout);
+
 	if($mu or $tu){
+	    if($mu) {
+		print STDERR "Process $current_process_name uses more than $mem_usage_cap kiB : ".get_memory_usage()."\n"; 
+	    }
+
+	    if($tu) {
+		print STDERR "Process $current_process_name have been running for longer that $timeout sec (+- $CYCLE_LEN sec)\n"; 
+	    }
+
 	    print STDERR "killing $current_process_name.\n";
 	    kill_process_tree($current_process_pid);
 	    if($mu){
@@ -366,10 +223,11 @@ sub init{
 
     $output_dir = output_dir_default_name();
     
-# preparing tmp file to store program outputs. 
-    (my $out_fh, $tmp_out) = tempfile("/tmp/runtime_tmp_XXXX");
+# preparing tmp file to store program outputs.
+    (my $out_fh, $tmp_out) = create_temp_file("tmp");
+    print "CREATING $tmp_out \n"; 
     close($out_fh);
-    ($out_fh, $time_tmp_file) = tempfile("/tmp/runtime_tmp_time_XXXX");
+    ($out_fh, $time_tmp_file) = create_temp_file("tmp_time");
     close($out_fh); 
 
 }
@@ -402,7 +260,7 @@ sub finalize_readme_file{
 	print README $line; 
     }
     close READMETMP;
-    print README "Expeperiment finished at ".date_string."\n";
+    print README "Expeperiment finished at ".date_string()."\n";
     close README;
     system ("rm -f $output_dir/README.tmp"); 
     

@@ -11,3 +11,5 @@
 - Add monotonic/antimonotonic decoration 
 
 - re-add listing of command lines executed in the README
+
+- fix this warning: Warning: timout value (1 sec) is below timeout resolution (1 sec).
