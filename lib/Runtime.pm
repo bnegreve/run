@@ -453,7 +453,7 @@ sub build_a_command_line{
 
 # Create a filename from a tuple. 
 # (To store results.)
-sub tuple_to_filename{
+sub tuple_to_result_filename{
     die if @_ != 1; 
     my ($tuple) = @_;
     my $string = "";
@@ -473,10 +473,30 @@ sub tuple_to_filename{
     return $string; 
 }
 
+# Create a filename from a tuple. 
+# (To store the program output.)
+sub tuple_to_output_filename{
+    die if @_ != 1; 
+    my ($tuple) = @_;
+    my $string = "";
+    my $i = 0; 
+    foreach my $vr (@{$tuple}){
+	#print(Using_Ast_Check::parameter_value_ref_to_string($vr)."\n");
+	my $pname = value_ref_get_pname($vr);
+	my $param_id = value_ref_get_param_id($vr); 
+	$string .= $pname; 
+	$string .= '.'.value_ref_get_value($vr);
+	if(++$i != @{$tuple}){
+	    $string .= '_';
+	}
+    }
+    return $string; 
+}
+
 sub save_program_output{
     die if @_ != 1; 
     my ($tuple) = @_;
-    my $filename = "$output_dir/output/".tuple_to_filename($tuple).".out";
+    my $filename = "$output_dir/output/".tuple_to_output_filename($tuple).".out";
     system ("mv $tmp_out $filename");
     init_temp_file(); 
 }
@@ -627,7 +647,7 @@ sub write_a_result_file{
     die if @_ != 4; 
     my ($result_db, $file_class_tuples, $file_prefix, $info_reported) = @_;
 
-    my $filename = $file_prefix.tuple_to_filename($file_class_tuples->[0]);
+    my $filename = $file_prefix.tuple_to_result_filename($file_class_tuples->[0]);
     my $fh; 
     if(not (open $fh, ">$filename")){
 	warning_output("Cannot create result file '$filename': $! Using stdout."); 
