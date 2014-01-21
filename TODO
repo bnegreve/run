@@ -10,6 +10,10 @@
 
 - fix this warning: Warning: timout value (1 sec) is below timeout resolution (1 sec).
 
+- fix bug 
+Ran into unknown state (hex char: 58) at /home/benjamin/perl5/lib/perl5/System_API.pm line 70.
+
+
 DONE: 
 - Fix bug: 
  runtime -t 1   -p TIME 1 2 -p MESSAGE hello world -u TIMExMESSAGE --
