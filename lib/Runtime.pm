@@ -369,7 +369,7 @@ sub parse_program_arguments{
 		    
 		    my @values = (); 
 		    while(defined (my $n = shift @argv)){
-			if($n =~ /^-/){
+			if($n =~ /^-[^0-9]/){
 			    unshift @argv, $n; 
 			    last; 
 			}
