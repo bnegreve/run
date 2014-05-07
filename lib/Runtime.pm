@@ -826,7 +826,8 @@ sub startup{
     my $num_runs = 0; 
     foreach my $t (@tuples){
 	my $cl = build_a_command_line($progtotest_command_template, $t);
-	push @progtotest_command_lines, $cl;
+	my $outfile = "\t > output/".tuple_to_output_filename($t).'.out';
+	push @progtotest_command_lines, $cl.$outfile;
 	$num_runs++; 
     }
 
