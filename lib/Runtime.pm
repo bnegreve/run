@@ -55,6 +55,8 @@ my %params;
 my $progtotest_command_template;
 my @progtotest_command_lines; 
 
+my $dryrun = 0;
+
 our $runtime_bin_path = $0; 
 
 our $errors = 0; 
@@ -339,8 +341,8 @@ sub print_usage{
     die if @_ != 0; 
     print STDERR "Usage: $runtime_bin_path -p PARAMETER_NAME parameter_value_1 .. parameter_value_n\
  [-p PARAMETER2_NAME parameter2_value_1 .. parameter2_value_n]\
- [-s post_output_script1 [-s post_output_script2 ...]\
- [-m max_memory_usage (% total)] [ -t timeout value]\
+ [-s extract_metric_script1 [-s extract_metric_script2 ...]\
+ [-m max_memory_usage (% total)] [ -t timeout value] [ -d (dryrun) ]\
  -u using_expression -- command_line_template\n";
  
     exit 0; 
@@ -352,7 +354,7 @@ sub parse_program_arguments{
     my @argv = @{$_[0]}; 
 
     while (my $arg = shift @argv){
-	if($arg =~ /\-([putmso-])/){
+	if($arg =~ /\-([putmsod-])/){
 
 	    ####################
 	    #### parameters ####
@@ -452,7 +454,14 @@ sub parse_program_arguments{
 		    print_usage;
 		}
 	    }
-	    
+
+	    #################
+	    #### dry run ####
+            #################
+	    elsif($1 eq 'd'){
+		$dryrun = 1; 
+	    }
+
 	    elsif($1 eq '-'){
 		if(@argv == 0) {print_usage; die "Cannot parse command line\n";}
 		
@@ -775,27 +784,40 @@ sub startup{
     check_ast($using_ast);
     check_all_scripts(@post_exec_scripts); 
     #print ast_to_string($using_ast);
-    populate_output_dir($output_dir);
 
-# Creating the databases    
-    my $time_db = new Result_Db($output_dir, "time");
-    my $mem_db = new Result_Db($output_dir, "mem");
+    if($dryrun) {print "Warning: THIS IS A DRYRUN, no output file will be generated.\n";}
+
+# Creates output file and database files
+
+
+    my $time_db; 
+    my $mem_db;
     my %usr_dbs = (); 
-    for my $script (@post_exec_scripts){
-	my $scriptname = scriptpath_to_scriptname $script; 
-	my $usr_db = new Result_Db($output_dir, $scriptname);
-	$usr_dbs{$scriptname} = $usr_db; 
+
+    unless ($dryrun){
+	populate_output_dir($output_dir);
+	
+	$time_db = new Result_Db($output_dir, "time");
+	$mem_db = new Result_Db($output_dir, "mem");
+	%usr_dbs = (); 
+	for my $script (@post_exec_scripts){
+	    my $scriptname = scriptpath_to_scriptname $script; 
+	    my $usr_db = new Result_Db($output_dir, $scriptname);
+	    $usr_dbs{$scriptname} = $usr_db; 
+	}
     }
 
 # Fetching the tuples and preparing the databses
     my @tuples = @{ast_get_tuples($using_ast)};
     #print Using_Ast_Check::tuples_to_string(\@tuples)."\n"; 
     foreach my $t (@tuples){
-	$time_db->result_db_add_tuple($t);
-	$mem_db->result_db_add_tuple($t);
-	for my $script (@post_exec_scripts){
-	    my $scriptname = scriptpath_to_scriptname $script;
-	    $usr_dbs{$scriptname}->result_db_add_tuple($t);
+	unless ($dryrun) {
+	    $time_db->result_db_add_tuple($t);
+	    $mem_db->result_db_add_tuple($t);
+	    for my $script (@post_exec_scripts){
+		my $scriptname = scriptpath_to_scriptname $script;
+		$usr_dbs{$scriptname}->result_db_add_tuple($t);
+	    }
 	}
     }
 
@@ -818,7 +840,13 @@ sub startup{
 
     
 # Everything seems to be OK. Starting experiments.
-    print "\nEverything seems to be OK. Starting experiments.\n\n";
+    if($dryrun){
+	print "\nEverything seems to be OK. Exiting now. (Because this is a DRYRUN)\n\n";
+	exit(0); 
+    }
+    else {
+	print "\nEverything seems to be OK. Starting experiments.\n\n";
+    }
 
     create_readme_file(@argv);
 
@@ -861,8 +889,8 @@ Runtime - Program large scale time/memory mesurements through a command line int
 
  runtime -p PARAMETER_NAME parameter_value_1 .. parameter_value_n
  [-p PARAMETER2_NAME parameter2_value_1 .. parameter2_value_n]\
- [-s post_output_script1 [-s post_output_script2 ...]\
- [-m max_memory_usage (% total)] [ -t timeout value]\
+ [-s extract_metric_script1 [-s extract_metric_script2 ...]\
+ [-m max_memory_usage (% total)] [ -t timeout value] [ -d (dryrun) ]\
  -u using_expression -- command_line_template\n";
  
 =head1 DESCRIPTION 
