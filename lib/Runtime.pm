@@ -169,7 +169,7 @@ END
 
 sub print_progtest_command_lines{
     foreach my $cl (@progtotest_command_lines){
-	print ">>$cl<<\n"; 
+	print "\t$cl\n"; 
     }
 }
 
@@ -184,9 +184,6 @@ sub print_info(){
     print "Total memory:\t".($total_memory/1024)." MiB\n"; 
     if ($mem_usage_cap == -1){ print "Max memory usage:\tUnlimited.\n"; }
     else { print "Max memory usage:\t".($mem_usage_cap/1024)." MiB\n";}
-    
-    print "The following command lines will be executed:\n"; 
-    print_progtest_command_lines();
 }
 
 
@@ -225,7 +222,7 @@ sub check_all_scripts{
 	error_check("Script '$script' does not exist or is not executable.") if check_script($script) != 1; 
 	
 	my $basename = scriptpath_to_scriptname $script;
-	if ($all_basenames{$basename} eq ''){
+	if (not exists($all_basenames{$basename})){
 	    $all_basenames{$basename} = $script; 
 	}
 	else{
@@ -296,9 +293,10 @@ sub create_readme_file{
     print README "Experiment started at $START_TIME on ".get_hostname().".\n";
     print README "$0 ".join(' ',@argv)."\n";
     
-    print README "\n\n"; 
+    print README "\n\n";
+    print README "Executed:\n";
     foreach my $cl (@progtotest_command_lines){
-	print README "$cl\n"; 
+	print README "\t$cl\n"; 
     }    
     print README "\n"; 
 
@@ -803,26 +801,29 @@ sub startup{
 
 # Print various info 
     print_info();
-    create_readme_file(@argv);
     my $num_runs = 0; 
     foreach my $t (@tuples){
 	my $cl = build_a_command_line($progtotest_command_template, $t);
-	print "$cl\n";
+	push @progtotest_command_lines, $cl;
 	$num_runs++; 
     }
+
+    print "The following command lines will be executed:\n"; 
+    print_progtest_command_lines; 
+
     if($timeout != -1){
 	my $max_run_time = ($num_runs * $timeout) / 60;
 	print "Maximum run time: $num_runs x $timeout = $max_run_time minutes. (".($max_run_time/60)." hours.)\n"; 
     }
 
     
-
 # Everything seems to be OK. Starting experiments.
     print "\nEverything seems to be OK. Starting experiments.\n\n";
-    
+
+    create_readme_file(@argv);
+
     foreach my $t (@tuples){
 	my $cl = build_a_command_line($progtotest_command_template, $t);
-	push @progtotest_command_lines, $cl;
 	my ($time, $mem, @usr) =  run_child($cl);
 	$time_db->result_db_set_result($t, $time);
 	$mem_db->result_db_set_result($t, $mem);
