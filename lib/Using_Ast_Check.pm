@@ -71,7 +71,7 @@ sub check_ast{
     my ($ast_node) = @_; 
     check_ast_node($ast_node);
     build_parameter_list($ast_node, "U"); # U stands for undifined decor string
-    my @param_ids = sort keys %param_names; 
+    my @param_ids = sort {$a <=> $b} keys %param_names; 
     assign_format_spec($ast_node->{value}->{decor_string}, \@param_ids); 
     compute_std_parameter_order(); 
 }
