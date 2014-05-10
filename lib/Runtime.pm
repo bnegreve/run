@@ -650,7 +650,6 @@ sub get_all_classes_from_class_type{
     return \@all_classes; 
 }
 
-
 # Given a tuple (usually, the first of a line class of tuples), write
 # the line heading for the corresponding class.
 # The heading is the values of all the parameters that
@@ -853,7 +852,26 @@ sub startup{
 
     foreach my $t (@tuples){
 	my $cl = build_a_command_line($progtotest_command_template, $t);
-	my ($time, $mem, @usr) =  run_child($cl);
+	my ($time, $mem, @usr);
+
+	my $skip_flag = 0;
+	foreach my $p (Using_Ast_Check::get_all_preceding_tuples($t, \@tuples)){
+	    if( ($mem_db->get_result($p) eq "ERR_MEM") or ($time_db->get_result($p) eq "ERR_TME")){
+		$skip_flag = 1; 
+	    }
+	}
+	
+	if($skip_flag){
+	    $time = "SKP"; 
+	    $mem = "SKP"; 
+	    for (@post_exec_scripts){
+		push @usr, "SKP"; 
+	    }
+	    print "Skipping next run because related run timed or memory outed\n\t$cl\n";
+	}
+	else{
+	    ($time, $mem, @usr) =  run_child($cl);
+	}
 	$time_db->result_db_set_result($t, $time);
 	$mem_db->result_db_set_result($t, $mem);
 	

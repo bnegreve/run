@@ -146,6 +146,91 @@ sub value_ref_get_param_id{
     return $vr->[0]; 
 }
 
+# Returns parameter id from value ref. 
+sub value_ref_get_value_id{
+    die if @_ != 1;
+    my $vr = $_[0]; 
+    return $vr->[1]; 
+}
+
+# Return 1 if vr1 precedes vr2 according to specified order (">" or "<"), 0 if they're equal or -1 of vr2 precedes vr1. 
+sub value_ref_compare_rel{
+    die if @_ != 3;
+    my ($vr1, $vr2, $rel) = @_;
+    if($rel eq ">"){
+	return 1 if value_ref_get_value_id($vr1) > value_ref_get_value_id($vr2);
+	return -1 if value_ref_get_value_id($vr2) > value_ref_get_value_id($vr1);
+	return 0; 
+    }
+    elsif($rel eq "<"){
+	return value_ref_compare_rel($vr2, $vr1, ">")
+    }
+    else { die "Unknown relation '$rel'"; }
+}
+
+# Return 1 if vr1 precedes vr2 according to the order specified in the using expression, otherwise 0 if they're equal or -1 of vr2 precedes vr1. 
+sub value_ref_compare{
+        die if @_ != 2;
+	my ($vr1, $vr2) = @_;
+	if(value_ref_get_pname($vr1) eq "TEST"){
+	    return value_ref_compare_rel($vr1, $vr2, "<"); 
+	}
+	else {
+	    return 0; 
+	}
+}
+
+# return 1 if tuple t1 precedes t2 according to the orders specified in the using expressions. 
+sub tuple_precedes_tuple{
+    die if @_ != 2; 
+    my ($t1, $t2) = @_; 
+
+    die "Trying to compare incompatible tuples" if scalar @$t1 != scalar @$t2;
+
+    my @tuples_relations = ();
+    
+    for my $i (0..$#$t1){
+
+	my $vr1 = $t1->[$i];
+	my $vr2 = $t2->[$i]; 
+
+	my $pname1 = value_ref_get_pname($vr1);
+	my $pname2 = value_ref_get_pname($vr2);
+
+	die "Trying to compare incopatible tuples" if not $pname1 eq $pname2 ; 
+
+	$tuples_relations[$i] = value_ref_compare($vr1, $vr2);
+    }
+
+    my $precedes_flag = 0; 
+
+    foreach my $rel_indicator (@tuples_relations){
+	if($rel_indicator == -1){
+	    return 0;
+	}
+
+	if($rel_indicator == 1){
+	    $precedes_flag=1; 
+	}
+    }
+    
+    return $precedes_flag; 
+}
+
+# Return all preceding tuples according to the orders specified in the using expression 
+sub get_all_preceding_tuples{
+    die if @_ != 2; 
+    my ($tuple, $all_tuples) = @_; 
+    my @preceding_tuples = (); 
+
+    foreach my $t (@$all_tuples){
+	if(tuple_precedes_tuple($t, $tuple)){
+	    push @preceding_tuples, $t; 
+	}
+    }
+    return @preceding_tuples; 
+}
+
 # Check parameter node. 
 sub check_parameter_node{
     die if @_ != 1;
