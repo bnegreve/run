@@ -19,6 +19,9 @@ our %param_names = ();
 # Maps parameter ids to format specifictions (i.e. f(ile), c(olumn) or l(ine))
 our %param_format_spec = ();
 
+# Maps parameters ids to parameter precedence relation 
+our %param_precedence_relation = (); 
+
 # Maps parameter ids to index in a cannonical order (lex order over parameter names.) 
 our %param_std_order = ();
 
@@ -65,15 +68,17 @@ sub declare_parameter{
     }
 }
 
-# Check abstract syntax tree. 
+# Check and decorate abstract syntax tree. 
 sub check_ast{
     die if @_ != 1;
     my ($ast_node) = @_; 
-    check_ast_node($ast_node);
-    build_parameter_list($ast_node, "U"); # U stands for undifined decor string
-    my @param_ids = sort {$a <=> $b} keys %param_names; 
-    assign_format_spec($ast_node->{value}->{decor_string}, \@param_ids); 
+    check_ast_node($ast_node, undef);
+    %param_names = %{ $ast_node->{value}->{parameter_list} };
+    %param_format_spec = %{ $ast_node->{value}->{format_spec} };
+    %param_precedence_relation = %{ $ast_node->{value}->{parameter_relation} };
+    assign_format_spec(); 
     compute_std_parameter_order(); 
+    
 }
 
 # Returns a string representation of a set of tuple.
@@ -165,19 +170,16 @@ sub value_ref_compare_rel{
     elsif($rel eq "<"){
 	return value_ref_compare_rel($vr2, $vr1, ">")
     }
-    else { die "Unknown relation '$rel'"; }
+    return 0;
 }
 
 # Return 1 if vr1 precedes vr2 according to the order specified in the using expression, otherwise 0 if they're equal or -1 of vr2 precedes vr1. 
 sub value_ref_compare{
         die if @_ != 2;
 	my ($vr1, $vr2) = @_;
-	if(value_ref_get_pname($vr1) eq "TEST"){
-	    return value_ref_compare_rel($vr1, $vr2, "<"); 
-	}
-	else {
-	    return 0; 
-	}
+	die if value_ref_get_param_id($vr1) != value_ref_get_param_id($vr2); 
+	return value_ref_compare_rel($vr1, $vr2, 
+				     parameter_get_precedence_relation(value_ref_get_param_id($vr1))); 
 }
 
 # return 1 if tuple t1 precedes t2 according to the orders specified in the using expressions. 
@@ -231,83 +233,6 @@ sub get_all_preceding_tuples{
     return @preceding_tuples; 
 }
 
-# Check parameter node. 
-sub check_parameter_node{
-    die if @_ != 1;
-    my $ast_node = $_[0];
-    my $value = $ast_node->{value};
-
-    if (defined $params{$value->{name}}){
-	my $i = 0;
-	my @tmp = map { [[$value->{id}, $i++]] } @{$params{$value->{name}}};
-	$value->{tuples} = \@tmp; 
-    }
-    else{
-	fatal_error 'Parameter \''.$value->{name}.'\' undeclared.';
-    }
-}
-
-# check that the subtrees are valid for a product operation, build the
-# tuples and put the result in the node value field. 
-sub check_binary_operator_node{
-    die if @_ != 1;
-    my $ast_node = $_[0];
-    
-    die if (not (defined($ast_node->{left}) and defined($ast_node->{right}))); 
-    my $left = $ast_node->{left};
-    my $right = $ast_node->{right};
-
-    switch ($ast_node->{type}){
-	case /eq_operator/ {check_eq_operator_node($ast_node, $left, $right)};
-	case /prod_operator/ {check_prod_operator_node($ast_node, $left, $right)}; 
-    }
-}
-
-# Update tuples field in non terminal. 
-# prod combines the tuples from the child subtrees. 
-# (catherisian product) 
-# i.e. [<A:0>] [<A:1>] combined with [<B:0>] [<B:1>]
-# becomes [<A:0><B:0>] [<A:0><B:1>] [<A:1><B:0>]  [<A:1><B:1>]
-sub check_prod_operator_node{
-    die if @_ != 3;
-    my ($node, $left, $right) = @_;
-
-    $node->{value}->{tuples} = [];
-    my $left_tuples = $left->{value}->{tuples};
-    my $right_tuples = $right->{value}->{tuples};
-
-    foreach my $v1 (@$left_tuples){
-    	foreach my $v2 (@$right_tuples){
-	    push @{$node->{value}->{tuples}}, [@$v1, @$v2];
-    	}
-    }
-    
-}
-
-# Update tuples field in non terminal.  eq maps each value
-# ref in the left subtree to a value ref in the right subtree with
-# respect to the input order.  i.e. [<A:0>] [<A:1>] combined with
-# [<B:0>] [<B:1>] becomes [<A:0><B:0>] [<A:1><B:1>].
-sub check_eq_operator_node{
-    die if @_ != 3;
-    my ($node, $left, $right) = @_;
-    my $left_tuples = $left->{value}->{tuples};
-    my $right_tuples = $right->{value}->{tuples};
-
-    my $s1 = @{$left->{value}->{tuples}};
-    my $s2 = @{$right->{value}->{tuples}};
-    if ($s1 != $s2){
-	fatal_error "The '=' operator can only be applied to value spaces of
- the same size. Left operand size: $s1, right operand size: $s2.";
-    }
-
-    $node->{value}->{tuples} = [];
-    for my $i (0..$#{$left_tuples}){
-	push @{$node->{value}->{tuples}},
-	[@{$left_tuples->[$i]}, @{$right_tuples->[$i]}];
-    }
-}
-
 # Get the array of tuples associated with the root of the
 # ast. (I.e. all the tuples.)
 sub ast_get_tuples{
@@ -339,20 +264,183 @@ sub all_parameter_names_in_std_order{
     return sort {$param_std_order{$a} <=> $param_std_order{$b}} keys %param_std_order; 
 }
 
-
-# Check abstract syntax tree, helper function.  
+# Check and decorate abstract syntax tree,  function.  
+# check bottom up. 
 sub check_ast_node{
-    die if @_ != 1; 
-    my $ast_node = $_[0];
-
-    if(defined $ast_node->{left}){
-	check_ast_node($ast_node->{left});
-	check_ast_node($ast_node->{right}); 
-    }
+    die if @_ != 2; 
+    my ($node, $parent_node) = @_;
     
-    switch ($ast_node->{type}){
-	case /parameter/ {check_parameter_node($ast_node)};
-	case /.*_operator/ { check_binary_operator_node($ast_node)}
+    inherit_node_attributes($node, $parent_node); 
+
+    if(defined $node->{left}){
+	check_ast_node($node->{left}, $node);
+	check_ast_node($node->{right}, $node);
+    }
+
+    synthesize_node_attributes($node);
+}
+
+sub inherit_node_attributes{
+    die if @_ != 2; 
+    my ($node, $parent) = @_; 
+
+    inherit_decor_string($node, $parent) if defined $parent; 
+
+    # switch ($node->{type}){
+    # 	case /parameter/ { inherit_parameter_node_attributes($node); };
+    # 	case /.*_operator/ { inherit_binary_operator_node_attributes($node); }; 
+    # }
+}
+
+sub inherit_decor_string{
+    die if @_ != 2; 
+    my ($node, $parent) = @_; 
+    
+    my $value = $node->{value};
+    my $parent_value = $parent->{value}; 
+
+    # inherit decor string from parent (i.e. concatenate)
+    $value->{decor_string} .= $parent_value->{decor_string}; 
+}
+
+sub synthesize_node_attributes{
+    die if @_ != 1; 
+    my $node = $_[0]; 
+
+    # Check the node type
+    switch ($node->{type}){
+	case /parameter/ { synthesize_parameter_node_attributes($node); };
+	case /.*_operator/ { synthesize_binary_operator_node_attributes($node)}; 
+    }
+
+}
+
+sub synthesize_parameter_node_attributes{
+    die if @_ != 1; 
+    my ($node) = @_; 
+
+    my $value = $node->{value};
+
+    # Synthesize tuple list 
+    if (defined $params{$value->{name}}){
+	my $i = 0;
+	my @tmp = map { [[$value->{id}, $i++]] } @{$params{$value->{name}}};
+	$value->{tuples} = \@tmp; 
+    }
+    else{
+	fatal_error 'Parameter \''.$value->{name}.'\' undeclared.';
+    }
+
+    # Synthesize parameter list stub 
+    $value->{parameter_list} = { $value->{id} => $value->{name} }; 
+
+    # Synthesize format spec hash
+    my $format_spec = format_spec_from_decor_string($value->{decor_string}); 
+    $value->{format_spec} = {$value->{id} => $format_spec}; 
+
+    # Synthesize parameter relation hash
+    my $parameter_relation = parameter_relation_from_decor_string($value->{decor_string}); 
+    $value->{parameter_relation} = {$value->{id} => $parameter_relation}; 
+
+
+}
+
+# Extract the most specific format spec from the decor string (by construction, the right most character in [fcl]
+sub format_spec_from_decor_string{
+    die if @_ != 1; 
+    my $decor_string = $_[0];
+
+    if($decor_string =~ /([fcl])/){
+	return $1;
+    }
+    return "U"; 
+}
+
+# Extract the most specific parameter relation from the decor string (by construction, the right most character in [<>]
+sub parameter_relation_from_decor_string{
+    die if @_ != 1; 
+    my $decor_string = $_[0];
+
+    if($decor_string =~ /([<>])/){
+	return $1;
+    }
+    return "U"; 
+}
+
+# synthesize attributes for binary operators nodes such as eq and prod 
+sub synthesize_binary_operator_node_attributes{
+    die if @_ != 1;
+    my $node = $_[0];
+    
+    die if (not (defined($node->{left}) and defined($node->{right}))); 
+    my $left = $node->{left};
+    my $right = $node->{right};
+
+    # Synthesize parameter list
+    $node->{value}->{parameter_list} = merge_hash_ref($left->{value}->{parameter_list}, $right->{value}->{parameter_list}); 
+    
+    # Synthesize format spec 
+    $node->{value}->{format_spec} = merge_hash_ref($left->{value}->{format_spec}, $right->{value}->{format_spec}); 
+
+    # Synthesize parameter relations
+    $node->{value}->{parameter_relation} = merge_hash_ref($left->{value}->{parameter_relation}, $right->{value}->{parameter_relation}); 
+    
+    # Synthesize tuples (operator specific)
+    switch ($node->{type}){
+	case /eq_operator/ {synthesize_eq_operator_node_attributes($node, $left, $right)};
+	case /prod_operator/ {synthesize_prod_operator_node_attributes($node, $left, $right)}; 
+    }
+}
+
+sub merge_hash_ref{
+    die if @_ != 2; 
+    my ($hash_ref1, $hash_ref2) = @_; 
+    return { %{$hash_ref1}, %{$hash_ref2} }; 
+}
+
+# Update tuples field in non terminal. 
+# prod combines the tuples from the child subtrees. 
+# (catherisian product) 
+# i.e. [<A:0>] [<A:1>] combined with [<B:0>] [<B:1>]
+# becomes [<A:0><B:0>] [<A:0><B:1>] [<A:1><B:0>]  [<A:1><B:1>]
+sub synthesize_prod_operator_node_attributes{
+    die if @_ != 3;
+    my ($node, $left, $right) = @_;
+
+
+    # Synthesize tuple list 
+    $node->{value}->{tuples} = [];
+    my $left_tuples = $left->{value}->{tuples};
+    my $right_tuples = $right->{value}->{tuples};
+
+    foreach my $v1 (@$left_tuples){
+    	foreach my $v2 (@$right_tuples){
+	    push @{$node->{value}->{tuples}}, [@$v1, @$v2];
+    	}
+    }
+}
+
+# Update tuples field in non terminal.  eq maps each value
+# ref in the left subtree to a value ref in the right subtree with
+# respect to the input order.  i.e. [<A:0>] [<A:1>] combined with
+# [<B:0>] [<B:1>] becomes [<A:0><B:0>] [<A:1><B:1>].
+sub synthesize_eq_operator_node_attributes{
+    die if @_ != 3;
+    my ($node, $left, $right) = @_;
+    my $left_tuples = $left->{value}->{tuples};
+    my $right_tuples = $right->{value}->{tuples};
+
+    my $s1 = @{$left->{value}->{tuples}};
+    my $s2 = @{$right->{value}->{tuples}};
+    if ($s1 != $s2){
+	fatal_error "The '=' operator can only be applied to value spaces of
+ the same size. Left operand size: $s1, right operand size: $s2.";
+    }
+
+    $node->{value}->{tuples} = [];
+    for my $i (0..$#{$left_tuples}){
+	push @{$node->{value}->{tuples}},
+	[@{$left_tuples->[$i]}, @{$right_tuples->[$i]}];
     }
 }
 
@@ -377,6 +465,7 @@ sub build_parameter_list{
     } else{
 	# we are on a terminal node
 	$param_names{$ast_node->{value}->{id}} = $ast_node->{value}->{name}; 
+	$param_names{$ast_node->{p_attr}->{id}} = $ast_node->{value}->{name}; 
     }
 }
 
@@ -391,20 +480,22 @@ sub compute_std_parameter_order{
     }
 }
 
+
 # Assign format spec to parameter names using the format specification
 # string at the root of the ast.
 sub assign_format_spec{
-    die if @_ != 2; 
-    my ($format_spec_string, $param_ids) = @_;
-    die if (length ($format_spec_string) < @$param_ids); 
+    die if @_ != 0; 
 
-    my $i; 
+    my @param_ids = sort {$a <=> $b} keys %param_names; 
+
     my $last_char = 'U'; 
-#    for($i = $#$param_ids+1; $i > 0; $i--){
-    for($i = scalar(@$param_ids)-1; $i >= 0; $i--){
-	my $format_char = substr $format_spec_string, $i, 1;
+    for (my $i = $#param_ids; $i >= 0; $i--){
+	my $pid = $param_ids[$i]; 
+
+	my $format_char = $param_format_spec{$pid}; 
+
 	if($format_char eq 'U'){  
-	    # If undefined, assign format specification in a round robin fashion 
+	    # If undefined, assign format specification in a round robin fashion
 	    if($last_char eq 'U'){ $format_char = 'l'; }
 	    else{
 		switch ($last_char){
@@ -414,13 +505,14 @@ sub assign_format_spec{
 		}
 	    }
 	    warning('No format specification for parameter '
-		    .$param_names{$param_ids->[$i]}
+		    .$param_names{$param_ids[$i]}
 		    .' ; automatically assigned to \''.$format_char.'\'.' ); 
+	    $param_format_spec{$param_ids[$i]} = $format_char;
 	}
-	$param_format_spec{$param_ids->[$i]} = $format_char;
 	$last_char = $format_char; 
     }
 }
+
 
 sub parameter_get_format_spec{
     die if @_ != 1; 
@@ -429,18 +521,16 @@ sub parameter_get_format_spec{
     return $param_format_spec{$param_id};
 }
 
+sub parameter_get_precedence_relation{
+    die if @_ != 1; 
+    my ($param_id) = @_;
+    die unless defined $param_precedence_relation{$param_id}; 
+    return $param_precedence_relation{$param_id};
+}
+
 sub get_num_parameters{
     die if @_ != 0;
     return scalar keys %params; 
-}
-sub guess_format_specification{
-    die "You must provide format specification for each parameter f: one value per file, c: one value per column, l: one value per line. For example P1fxP2lxP3c"; 
-    #TODO Guessing the best format should be easy based on parameter value spaces:
-# if the number of parameter is one, assign a line format spec.
-# if it is two, assign a col to the parameter with the smallest domain.
-# if domains are equal first declared is col
-# ...
-
 }
 
 END{

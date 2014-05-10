@@ -44,7 +44,7 @@ BEGIN{
             | term decor
                {Using::ast_append_decor($item[1], $item[2]); $return = $item[1];}
 
-  decor: /[clf]?/
+  decor: /[clf<>]?/
 
   term: /[A-Z][A-Z_0-9]*/ 
                {$return  = Using::ast_create_parameter_node($item[1]);}
@@ -83,6 +83,14 @@ sub ast_to_string_subtree{
 	    if($k eq "tuples"){
 		$string.= Using_Ast_Check::tuples_to_string($ast{value}{$k});
 	    }
+	    elsif ( ref $ast{value}{$k} eq "HASH" ){
+		my $hashref = $ast{value}{$k}; 
+		$string .= "$k : {"; 
+		foreach my $kk (keys %$hashref){
+		    $string .= "$kk => ".$hashref->{$kk}.', '; 
+		}
+		$string .= "}, "; 
+	    }
 	    else{
 		$string.="$k: ".$ast{value}{$k}.", ";
 	    }
@@ -105,16 +113,17 @@ sub ast_to_string_subtree{
 # - one 'type' entry set to 'parameter' 
 # - one 'value' entry
 # that pointing to another hashmap. 
-# The value hashmap contains 
+# The value hashmap initially contains 
 # - an 'id' entry that contain a unique parameter identifier
 # - a 'name' entry containing the name of the parameter and an
-# - a 'decor' entry (initially set to "") that will ultimatly contain
+# - an empty 'decor_string' to be set by ast_set_decor
 # various data such as the format specification for this parameter. 
 sub ast_create_parameter_node{
     die if @_ != 1;
     my ($name) = @_;
+    my $id = $next_pid++; 
     return {type => "parameter", 
-	    value => {id => $next_pid++, 
+	    value => {id => $id, 
 		      name => $name,
 		      decor_string => ""}}; 
 }
@@ -147,12 +156,7 @@ sub ast_append_decor{
     my $ast = $_[0];
     my $decor = $_[1]; 
 
-    if (not (defined($ast->{value}->{decor_string}))){
-	$ast->{value}->{decor_string} = "$decor";
-    }
-    else{
-	$ast->{value}->{decor_string} .= $decor;
-    }
+    $ast->{value}->{decor_string} .= $decor; 
 }
 
 # Parse a using expression and return an abstract syntax tree for this
