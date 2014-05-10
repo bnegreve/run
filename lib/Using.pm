@@ -44,7 +44,7 @@ BEGIN{
             | term decor
                {Using::ast_append_decor($item[1], $item[2]); $return = $item[1];}
 
-  decor: /[clf<>]?/
+  decor: /[clf<>]*/
 
   term: /[A-Z][A-Z_0-9]*/ 
                {$return  = Using::ast_create_parameter_node($item[1]);}
