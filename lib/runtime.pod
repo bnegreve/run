@@ -1,8 +1,9 @@
-* Runtime
+=pod 
+=head1 Runtime
 
 Runtime - Program and run reproducible software experiments with the command line interface.  
     
-** Synopsis
+=head1 SYNOPSIS
 
  runtime -p PARAMETER_NAME parameter_value_1 .. parameter_value_n
  [-p PARAMETER2_NAME parameter2_value_1 .. parameter2_value_n]
@@ -10,7 +11,7 @@ Runtime - Program and run reproducible software experiments with the command lin
  [-m max_memory_usage (% total)] [ -t timeout value] [ -d (dryrun) ]
  -u using_expression -- command_line_template
  
-** Description 
+=head1 DESCRIPTION 
 
     
 Runtime should be use to collect and pre-format various statistics
@@ -49,9 +50,9 @@ the host name and the date are also stored in the README file to
 improve reproducibility.
 
 
-** Example
+=head1 EXAMPLE
 
-*** Comparing compiler compilation times. 
+=head2 Comparing compiler compilation times. 
 
 Let's say we want to compare the compilation time of various C compilers (e.g. gcc, clang) on different source code (e.g. quicksort.c, fibo.c). 
 
@@ -141,7 +142,7 @@ The content of the file time/time_TEST_PROGRAM.fibo.c_COMPILER_OPTIMIZATION_LEVE
     O3      0.08    0.05
     Os      0.05    0.05
 
-** Parameters 
+=head1 PARAMETERS 
 
 Each parameter is declared with the -p switch as follows. (Multiple parameters are declared with multiple -p switch.)
 
@@ -163,7 +164,7 @@ Remark that this is also possible:
     
     -p NUM_THREADS `seq 1 32`
     
-** Using expression
+=head1 USING EXPRESSION
 
 The using expression serves two purposes: 
 
@@ -214,7 +215,7 @@ will program the execution of:
 Note that if you introduce paranthesis, you must quote the using
 expression.
 
-** Format specification
+=head1 FORMAT SPECIFICATION
 
 Format descriptor are associated with parameters to describe how the
 mesurements will be stored in the results files. 
@@ -237,7 +238,7 @@ Each file contains times measurements laid out as follows:
 i.e. One value per column for parameter B and one value per line for
 parameter C.
 
-** Output directory
+=head1 OUTPUT DIRECTORY
 
 Each execution of runtime creates a directory named after the current date. 
 The directory contains
@@ -249,23 +250,19 @@ The directory contains
 Each subdirectory contains the reporting files except the output sub
 directory which contains the output of every execution.
 
-** See ALSO
+=head1 SEE ALSO
 
 gnuplot
     
-** Author
+=head1 AUTHOR
 
 Benjamin Negrevergne, E<lt>bnegreve@gmail.comE<gt>
 
-** Copyright and license
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2010-2013 by Benjamin Negrevergne
 
 This library is free software; you can redistribute it and/or modify
 it under the terms of the GPLv3.
 
-
-
-
-
-
+=cut
