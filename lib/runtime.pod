@@ -48,7 +48,7 @@ line will run the same experiment again. Other informations such as
 the host name and the date are also stored in the F<README> file to
 improve I<reproducibility>.
 
-See the L<Examples> section for concrete examples. 
+See the L</Examples> section for concrete examples. 
 
 =head1 Options 
 
