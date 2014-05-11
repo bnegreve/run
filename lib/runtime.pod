@@ -1,9 +1,8 @@
-=pod 
-=head1 Runtime
+=head1 Name 
 
 Runtime - Program and run reproducible software experiments with the command line interface.  
     
-=head1 SYNOPSIS
+=head1 Synopsis
 
  runtime -p PARAMETER_NAME parameter_value_1 .. parameter_value_n
  [-p PARAMETER2_NAME parameter2_value_1 .. parameter2_value_n]
@@ -11,7 +10,7 @@ Runtime - Program and run reproducible software experiments with the command lin
  [-m max_memory_usage (% total)] [ -t timeout value] [ -d (dryrun) ]
  -u using_expression -- command_line_template
  
-=head1 DESCRIPTION 
+=head1 Description 
 
     
 Runtime should be use to collect and pre-format various statistics
@@ -50,7 +49,7 @@ the host name and the date are also stored in the README file to
 improve reproducibility.
 
 
-=head1 EXAMPLE
+=head1 Example
 
 =head2 Comparing compiler compilation times. 
 
@@ -116,12 +115,7 @@ Where:
 
 - time/ is the directory containing all the data points for execution time.
 
-- time/time_TEST_PROGRAM.fibo.c_COMPILER_OPTIMIZATION_LEVEL one
-  file. Remark that in the filename TEST_PROGRAM is the only parameter
-  that is valued because TEST_PROGRAM file format is 'f' which stands
-  for 'one value per file', other parameters such as compiler take
-  different values in this file so the value is not reported in the
-  filename.
+- time/time_TEST_PROGRAM.fibo.c_COMPILER_OPTIMIZATION_LEVEL one file. Remark that in the filename TEST_PROGRAM is the only parameter that is valued because TEST_PROGRAM file format is 'f' which stands for 'one value per file', other parameters such as compiler take different values in this file so the value is not reported in the filename.
 
 - mem/ is the directory containing all the data points for maximum memory usage. Files are named following the same principle
 
@@ -142,15 +136,14 @@ The content of the file time/time_TEST_PROGRAM.fibo.c_COMPILER_OPTIMIZATION_LEVE
     O3      0.08    0.05
     Os      0.05    0.05
 
-=head1 PARAMETERS 
+=head1 Parameters 
 
 Each parameter is declared with the -p switch as follows. (Multiple parameters are declared with multiple -p switch.)
 
     -p PARAMETER_NAME value1 value2 value3 ...
 
     
-PARAMETER_NAME is the parameter name in capital letter and is followed
-by all the parameters values (strings) separated by whitespaces. For example:
+PARAMETER_NAME is the parameter name in capital letter and is followed by all the parameters values (strings) separated by whitespaces. For example:
 
     -p COMPILER_NAME gcc clang
 
@@ -164,7 +157,7 @@ Remark that this is also possible:
     
     -p NUM_THREADS `seq 1 32`
     
-=head1 USING EXPRESSION
+=head1 Using expression
 
 The using expression serves two purposes: 
 
@@ -215,7 +208,7 @@ will program the execution of:
 Note that if you introduce paranthesis, you must quote the using
 expression.
 
-=head1 FORMAT SPECIFICATION
+=head1 Format specification
 
 Format descriptor are associated with parameters to describe how the
 mesurements will be stored in the results files. 
@@ -238,7 +231,7 @@ Each file contains times measurements laid out as follows:
 i.e. One value per column for parameter B and one value per line for
 parameter C.
 
-=head1 OUTPUT DIRECTORY
+=head1 Output directory
 
 Each execution of runtime creates a directory named after the current date. 
 The directory contains
@@ -250,15 +243,19 @@ The directory contains
 Each subdirectory contains the reporting files except the output sub
 directory which contains the output of every execution.
 
-=head1 SEE ALSO
+=head1 Install 
 
-gnuplot
-    
-=head1 AUTHOR
+See INSTALL file.
+
+=head1 See also
+
+gnuplot    
+
+=head1 Author
 
 Benjamin Negrevergne, E<lt>bnegreve@gmail.comE<gt>
 
-=head1 COPYRIGHT AND LICENSE
+=head1 Copyright and license
 
 Copyright (C) 2010-2013 by Benjamin Negrevergne
 
