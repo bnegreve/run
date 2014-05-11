@@ -158,28 +158,34 @@ sub value_ref_get_value_id{
     return $vr->[1]; 
 }
 
-# Return 1 if vr1 precedes vr2 according to specified order (">" or "<"), 0 if they're equal or -1 of vr2 precedes vr1. 
+# Return 1 if vr1 precedes vr2 according to specified order (">" or "<" or "="), 0 otherwise. 
+# Relation "=" stands for "related if and only if equal". 
 sub value_ref_compare_rel{
     die if @_ != 3;
     my ($vr1, $vr2, $rel) = @_;
-    if($rel eq ">"){
+    if($rel eq "="){# related 
+	return 1 if value_ref_get_value_id($vr1) == value_ref_get_value_id($vr2); 
+	return 0; 
+    }
+    elsif($rel eq ">"){
 	return 1 if value_ref_get_value_id($vr1) > value_ref_get_value_id($vr2);
-	return -1 if value_ref_get_value_id($vr2) > value_ref_get_value_id($vr1);
 	return 0; 
     }
     elsif($rel eq "<"){
 	return value_ref_compare_rel($vr2, $vr1, ">")
     }
-    return 0;
+    die "Unknown relation '$rel'."; # Should have been caught at parsing. 
 }
 
-# Return 1 if vr1 precedes vr2 according to the order specified in the using expression, otherwise 0 if they're equal or -1 of vr2 precedes vr1. 
+# Return 1 if vr1 precedes vr2 according to the order specified in the using expression, 0 otherwise. 
+# If no expression have been specified, vrs are related iff they are equal. 
 sub value_ref_compare{
         die if @_ != 2;
 	my ($vr1, $vr2) = @_;
-	die if value_ref_get_param_id($vr1) != value_ref_get_param_id($vr2); 
-	return value_ref_compare_rel($vr1, $vr2, 
-				     parameter_get_precedence_relation(value_ref_get_param_id($vr1))); 
+	die if value_ref_get_param_id($vr1) != value_ref_get_param_id($vr2);
+	my $rel = parameter_get_precedence_relation(value_ref_get_param_id($vr1)); 
+	if($rel eq 'U'){ $rel = '='; }
+	return value_ref_compare_rel($vr1, $vr2, $rel); 
 }
 
 # return 1 if tuple t1 precedes t2 according to the orders specified in the using expressions. 
@@ -198,25 +204,11 @@ sub tuple_precedes_tuple{
 
 	my $pname1 = value_ref_get_pname($vr1);
 	my $pname2 = value_ref_get_pname($vr2);
-
 	die "Trying to compare incopatible tuples" if not $pname1 eq $pname2 ; 
 
-	$tuples_relations[$i] = value_ref_compare($vr1, $vr2);
+	return 0 if(value_ref_compare($vr1, $vr2) == 0); 
     }
-
-    my $precedes_flag = 0; 
-
-    foreach my $rel_indicator (@tuples_relations){
-	if($rel_indicator == -1){
-	    return 0;
-	}
-
-	if($rel_indicator == 1){
-	    $precedes_flag=1; 
-	}
-    }
-    
-    return $precedes_flag; 
+    return 1; 
 }
 
 # Return all preceding tuples according to the orders specified in the using expression 
