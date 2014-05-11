@@ -141,6 +141,7 @@ sub run_child{
 	    print STDERR "Warning: cannot run post exec user script \'$script\': ".$!.".\n"; 
 	}
     }
+    
     return ($time, $mem, @pes_outputs); 
 }
 
@@ -778,10 +779,10 @@ sub startup{
     my @argv = @_; 
     init(); 
     parse_program_arguments(\@argv);
-    #print ast_to_string($using_ast);
+#    print ast_to_string($using_ast);
     check_ast($using_ast);
     check_all_scripts(@post_exec_scripts); 
-    #print ast_to_string($using_ast);
+    print ast_to_string($using_ast);
 
     if($dryrun) {print "Warning: THIS IS A DRYRUN, no output file will be generated.\n";}
 
@@ -854,7 +855,9 @@ sub startup{
 	my ($time, $mem, @usr);
 
 	my $skip_flag = 0;
+	print "Search for preceding tuples for: ".tuple_to_string($t)."\n";
 	foreach my $p (Using_Ast_Check::get_all_preceding_tuples($t, \@tuples)){
+	    print "PRECEDING TUPLE: ".tuple_to_string($p)."\n";
 	    if( ($mem_db->get_result($p) eq "ERR_MEM") or ($time_db->get_result($p) eq "ERR_TME")){
 		$skip_flag = 1; 
 	    }
@@ -896,91 +899,175 @@ sub startup{
     finalize(); 
 }
 
+
 =head1 Runtime
 
-Runtime - Program large scale time/memory mesurements through a command line interface. 
-
-
+Runtime - Program and run reproducible software experiments with the command line interface.  
+    
 =head1 SYNOPSIS
 
  runtime -p PARAMETER_NAME parameter_value_1 .. parameter_value_n
- [-p PARAMETER2_NAME parameter2_value_1 .. parameter2_value_n]\
- [-s extract_metric_script1 [-s extract_metric_script2 ...]\
- [-m max_memory_usage (% total)] [ -t timeout value] [ -d (dryrun) ]\
- -u using_expression -- command_line_template\n";
+ [-p PARAMETER2_NAME parameter2_value_1 .. parameter2_value_n]
+ [-s extract_metric_script1 [-s extract_metric_script2 ...]
+ [-m max_memory_usage (% total)] [ -t timeout value] [ -d (dryrun) ]
+ -u using_expression -- command_line_template
  
 =head1 DESCRIPTION 
 
     
-Runtime can be used to program, run, and collect time or memory usage
-statistics for a program with a large number of parameters, or for
-multiple programs. 
+Runtime should be use to collect and pre-format various statistics
+such as execution time or memory usage for large batches of program
+executions (runs).  The collected statistics are stored as lines and
+columns into ascii files according to a format specified by the user. 
+These files are meant to by read by humans or plotted with tools such as
+gnuplot.
 
-Given a command line template, and a list of parameters with possible
-values, Runtime does the following.
+Runs are specified through a command line templated with parameter
+names (a.k.a. the command line template), and list of parameter
+specifications which include for each parameter the name of the
+parameter and a list of possible values. 
 
-1. Create the command lines; 
-2. run them, measuring time and memory usage; 
-3. store the measurements results and store programs outputs in files
-   properly named according to user specificatoin (See. Using expression.).
-4. Write a README file containing data about the experiments so it can
-   be easilly reproduced.
+Given a command line template and a parameter list, Runtime produces a
+list of command lines to be executed by substituting each parameter
+name in the command line template by a one of its possible value.
 
-=head1 EXAMPLE 
+By default, all the parameter values are combined to produce the
+complete list of command line to execute but the using expression can
+be used to control how the parameters values are combined together.
 
-Let's say we want to run the echo program multiple times with
-different parameters.
-We can do it with the following command line:
+For each run at least the execution time and maximum memory usage
+are recorded. More metrics can be added through extraction scripts.
 
-     runtime -p P1 a1 a2 -p P2 b1 b2 b3 -u P1cxP2l -- echo P1 P2
+Once all the command line have been produced by Runtime, they are
+displayed and executed. The data collected during the execution as
+well as the output produced by the command line are stored into output
+files.
 
-Which will:
+Finally a README file is created to record various meta data about the
+experimental setting. This includes the exact Runtime command that have been used to
+generate this particular experiment such that copying and pasting this command
+line will run the same experiment again. Other informations such as
+the host name and the date are also stored in the README file to
+improve reproducibility.
 
-- Run the following commands 
 
-    echo a1 b1
-    echo a1 b2
-    echo a1 b3
-    echo a2 b1
-    echo a2 b2
-    echo a2 b3
+=head1 EXAMPLE
 
-- Collect run times and memory usage and store them into file. 
-One value per column for P1, one value per line for P2. 
-(lowercase c stands for column, l for line, and f for file). 
+=head2 Comparing compiler compilation times. 
 
-- Store the results in files, lines and columns according to format
-specifications in the using expression.  In our example P1cxP2l means
-that time (and memory) results will be stored one value per column for
-P1 and one value per line for P2.
+Let's say we want to compare the compilation time of various C compilers (e.g. gcc, clang) on different source code (e.g. quicksort.c, fibo.c). 
 
-This will lead to the following layout in the output file. 
+     runtime -p COMPILER gcc clang -p TEST_PROGRAM quicksort.c fibo.c -p OPTIMIZATION_LEVEL O1 O2 O3 Os -u TEST_PROGRAMfxCOMPILERcxOPTIMIZATION_LEVELl -- COMPILER -OPTIMIZATION_LEVEL TEST_PROGRAM
 
-    # P2    P1=a1   P1=a2
-    b1      0.00    0.00
-    b2      0.00    0.00
-    b3      0.00    0.00
+This declares three parameters called COMPILER TEST_PROGRAM and OPTIMIZATION_LEVEL. 
+Each parameters takes values in the list following the parameter name, for example COMPILER can take two values, either 'gcc' or 'clang'. 
 
-(time are 0.00 because executing "echo" is almost instantaneous.)
+Running the specified command will build and run the following commands. 
 
-Result files are easy to plot using Gnuplot or other plotting tools.
+        gcc -O1 quicksort.c   
+        gcc -O2 quicksort.c   
+        gcc -O3 quicksort.c   
+        gcc -Os quicksort.c   
+        clang -O1 quicksort.c 
+        clang -O2 quicksort.c 
+        clang -O3 quicksort.c 
+        clang -Os quicksort.c 
+        gcc -O1 fibo.c        
+        gcc -O2 fibo.c        
+        gcc -O3 fibo.c        
+        gcc -Os fibo.c        
+        clang -O1 fibo.c      
+        clang -O2 fibo.c      
+        clang -O3 fibo.c      
+        clang -Os fibo.c      
+
+... and produce the following output file structure
+
+    2014-05-11_152521
+    ├── README
+    ├── time
+    │   ├── time_TEST_PROGRAM.fibo.c_COMPILER_OPTIMIZATION_LEVEL
+    │   └── time_TEST_PROGRAM.quicksort.c_COMPILER_OPTIMIZATION_LEVEL
+    ├── mem
+    │   ├── mem_TEST_PROGRAM.fibo.c_COMPILER_OPTIMIZATION_LEVEL
+    │   └── mem_TEST_PROGRAM.quicksort.c_COMPILER_OPTIMIZATION_LEVEL
+    └── output
+        ├── TEST_PROGRAM.fibo.c_COMPILER.clang_OPTIMIZATION_LEVEL.O1.out
+        ├── TEST_PROGRAM.fibo.c_COMPILER.clang_OPTIMIZATION_LEVEL.O2.out
+        ├── TEST_PROGRAM.fibo.c_COMPILER.clang_OPTIMIZATION_LEVEL.O3.out
+        ├── TEST_PROGRAM.fibo.c_COMPILER.clang_OPTIMIZATION_LEVEL.Os.out
+        ├── TEST_PROGRAM.fibo.c_COMPILER.gcc_OPTIMIZATION_LEVEL.O1.out
+        ├── TEST_PROGRAM.fibo.c_COMPILER.gcc_OPTIMIZATION_LEVEL.O2.out
+        ├── TEST_PROGRAM.fibo.c_COMPILER.gcc_OPTIMIZATION_LEVEL.O3.out
+        ├── TEST_PROGRAM.fibo.c_COMPILER.gcc_OPTIMIZATION_LEVEL.Os.out
+        ├── TEST_PROGRAM.quicksort.c_COMPILER.clang_OPTIMIZATION_LEVEL.O1.out
+        ├── TEST_PROGRAM.quicksort.c_COMPILER.clang_OPTIMIZATION_LEVEL.O2.out
+        ├── TEST_PROGRAM.quicksort.c_COMPILER.clang_OPTIMIZATION_LEVEL.O3.out
+        ├── TEST_PROGRAM.quicksort.c_COMPILER.clang_OPTIMIZATION_LEVEL.Os.out
+        ├── TEST_PROGRAM.quicksort.c_COMPILER.gcc_OPTIMIZATION_LEVEL.O1.out
+        ├── TEST_PROGRAM.quicksort.c_COMPILER.gcc_OPTIMIZATION_LEVEL.O2.out
+        ├── TEST_PROGRAM.quicksort.c_COMPILER.gcc_OPTIMIZATION_LEVEL.O3.out
+        └── TEST_PROGRAM.quicksort.c_COMPILER.gcc_OPTIMIZATION_LEVEL.Os.out
+    
+Where: 
+
+- 2014-05-11_152521/ is the root directory for this experiment, named after the date in the YYYY-mm-dd_hhmmss format. 
+
+- README is the README file described earlier. 
+
+- time/ is the directory containing all the data points for execution time.
+
+- time/time_TEST_PROGRAM.fibo.c_COMPILER_OPTIMIZATION_LEVEL one
+  file. Remark that in the filename TEST_PROGRAM is the only parameter
+  that is valued because TEST_PROGRAM file format is 'f' which stands
+  for 'one value per file', other parameters such as compiler take
+  different values in this file so the value is not reported in the
+  filename.
+
+- mem/ is the directory containing all the data points for maximum memory usage. Files are named following the same principle
+
+- ouput/ is the directory containing the output (stdout and stderr) generated by the runs. There is one file per run so all the parameters are valued in the filename.
+
+The content of the file time/time_TEST_PROGRAM.fibo.c_COMPILER_OPTIMIZATION_LEVEL is the following and should speak for itself. 
+
+    # Experiment started on: 2014-05-11 15:25:22. 
+    # Machine hostname: neb.
+    # Timout for each run -1 s.  
+    # Maximum memory usage allowed -0.0009765625 MiB.
+    #
+    # Reporting: Wall clock time (in seconds).
+    #
+    # OPTIMIZATION_LEVEL    COMPILER=gcc    COMPILER=clang
+    O1      0.04    0.05
+    O2      0.05    0.05
+    O3      0.08    0.05
+    Os      0.05    0.05
 
 =head1 PARAMETERS 
 
 Each parameter is declared with the -p switch as follows. (Multiple parameters are declared with multiple -p switch.)
 
     -p PARAMETER_NAME value1 value2 value3 ...
-    
-PARAMETER_NAME is the parameter name in capital letter and is followed by all the parameters values (strings) separated by whitespaces.
 
-Notice that this is also possible:
+    
+PARAMETER_NAME is the parameter name in capital letter and is followed
+by all the parameters values (strings) separated by whitespaces. For example:
+
+    -p COMPILER_NAME gcc clang
+
+or
+
+    -p NUM_THREADS 1 2 3 4
+
+are both valid parameter lists. 
+
+Remark that this is also possible:
     
     -p NUM_THREADS `seq 1 32`
     
-    
 =head1 USING EXPRESSION
 
-The using expression servs two purposes: 
+The using expression serves two purposes: 
 
 1. It describes how to combine the parameters values to build the
 command lines from the command line template.
@@ -1080,6 +1167,8 @@ This library is free software; you can redistribute it and/or modify
 it under the terms of the GPLv3.
 
 =cut
+
+
 
 1;
 __END__
