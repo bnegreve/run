@@ -5,11 +5,11 @@ Runtime - Program and run reproducible software experiments with the command lin
     
 =head1 Synopsis
 
-B<runtime> -p PARAMETER_NAME parameter_value_1 .. parameter_value_n
-[-p PARAMETER2_NAME parameter2_value_1 .. parameter2_value_n]
-[-s extract_metric_script1 [-s extract_metric_script2 ...]
-[-m max_memory_usage (% total)] [ -t timeout value] [ -d (dryrun) ]
--u using_expression -- command_line_template
+    runtime -p PARAMETER_NAME parameter_value_1 .. parameter_value_n
+    [-p PARAMETER2_NAME parameter2_value_1 .. parameter2_value_n]
+    [-s extract_metric_script1 [-s extract_metric_script2 ...]
+    [-m max_memory_usage (% total)] [ -t timeout value] [ -d (dryrun) ]
+    -u using_expression -- command_line_template
  
 =head1 Description 
     
