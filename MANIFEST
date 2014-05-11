@@ -8,7 +8,7 @@ lib/runtime.pod
 LICENSE
 Makefile.PL
 MANIFEST
-README
+README.pod
 INSTALL
 script/runtime
 t/Runtime.t
