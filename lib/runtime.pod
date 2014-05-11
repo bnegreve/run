@@ -21,7 +21,7 @@ These files are meant to by read by I<humans> or I<plotted> with tools such as
 gnuplot.
 
 Runs are specified through a command line templated with parameter
-names (a.k.a. the command line template), and list of parameter
+names (a.k.a. the command line template), and a list of parameter
 specifications which include for each parameter the name of the
 parameter and a list of possible values. 
 
@@ -111,6 +111,7 @@ for example ('l' and 'c' are format descriptors, you can safely ignore them for 
 
 runtime -p A a1 a2 -p B b1 b2 -u AlxBc -- echo A B C 
 will program the execution of:
+
     echo a1 b1
     echo a1 b2
     echo a2 b1
@@ -127,11 +128,14 @@ will program the execution of:
     echo a1 b1
     echo a2 b2
 
-You can combine them, and use paranthesis:
+You can combine them, and use parenthesis:
     
     runtime -p A a1 a2 -p B b1 b2 -p C c1 c2 -u "(Ac=Bl)xCf" -- echo A B C 
 
+Remark that in bash, you'll need to quote the using expressions so that the parenthesis are not captured by bash. 
+
 will program the execution of: 
+
     echo a1 b1 c1
     echo a1 b1 c2
     echo a2 b2 c1
@@ -150,12 +154,14 @@ They can be either 'f', 'l', or 'c'.
 - c stands for "one value per column"
 
 So:
+   
     runtime -p A a1 a2 -p B b1 b2 -p C c1 c2 -u AfxBcxCl -- echo A B C 
     
 Will create two files in the time output directory named:
 time_A.a1_B_C and time_A.a2_B_C
 
 Each file contains times measurements laid out as follows:
+
     # C     B=b1    B=b2
     c1      0.00    0.00
     c2      0.00    0.00
@@ -173,6 +179,7 @@ E.g. the the expression:
     runtime -t 10 -p A a1 a2 -p B b1 b2 -p C c1 c2 -u AfxBcxCl -- echo A B C 
 
 Will produce and run the following commands: 
+
        echo a1 b1 c1
        echo a1 b1 c2
        echo a1 b2 c1
@@ -182,8 +189,11 @@ Will produce and run the following commands:
        echo a2 b2 c1
        echo a2 b2 c2
 
-But 
-    runtime -t 10 -p A a1 a2 -p B b1 b2 -p C c1 c2 -u AfxBE<lt>cxCl -- echo A B C
+But:
+
+    runtime -t 10 -p A a1 a2 -p B b1 b2 -p C c1 c2 -u "AfxBE<lt>cxCl" -- echo A B C
+
+Remark that in bash you'll need to quote the using expression so that the '<lt>' symbol is not captured by bash. 
 
 Will not run  echo a2 b2 c1 if echo a2 b1 c1 timed out (or went out of memory). When runs are skipped the value B<SKP> is reported for all metrics. 
 
@@ -210,9 +220,9 @@ Let's say we want to compare the compilation time of various C compilers (e.g. g
      runtime -p COMPILER gcc clang -p TEST_PROGRAM quicksort.c fibo.c -p OPTIMIZATION_LEVEL O1 O2 O3 Os -u TEST_PROGRAMfxCOMPILERcxOPTIMIZATION_LEVELl -- COMPILER -OPTIMIZATION_LEVEL TEST_PROGRAM
 
 This declares three parameters called COMPILER TEST_PROGRAM and OPTIMIZATION_LEVEL. 
-Each parameters takes values in the list following the parameter name, for example COMPILER can take two values, either 'gcc' or 'clang'. 
+Each parameter can take any value in the list following the parameter name, for example COMPILER can take two values, either 'gcc' or 'clang'. 
 
-Running the specified command will build and run the following commands. 
+Running the previous Runtime command will produce and execute the following commands lines. 
 
         gcc -O1 quicksort.c   
         gcc -O2 quicksort.c   
@@ -231,7 +241,7 @@ Running the specified command will build and run the following commands.
         clang -O3 fibo.c      
         clang -Os fibo.c      
 
-... and produce the following output file structure
+... and create the following output file structure:
 
     2014-05-11_152521/
     |-- README
