@@ -27,7 +27,7 @@ parameter and a list of possible values.
 
 Given a command line template and a parameter list, Runtime produces a
 list of command lines to be executed by substituting each parameter
-name in the command line template by a one of its possible value.
+name in the command line template with one of its possible value.
 
 By default, all the parameter values are combined to produce the
 complete list of command line to execute but the using expression can
@@ -74,10 +74,10 @@ B<-u> I<using expression>
 
 Each parameter is declared with the B<-p> switch as follows. (Multiple parameters are declared with multiple B<-p> switch.)
 
-    -p I<PARAMETER_NAME> value1 value2 value3 ...
+    -p PARAMETER_NAME value1 value2 value3 ...
 
     
-I<PARAMETER_NAME> is the parameter name in uppercase letters and is followed by a space separated list of all the parameters values. Possible examples:
+I<PARAMETER_NAME> is the parameter name in uppercase letters and is followed by a list possibles values separated by spaces. Possible examples:
 
     -p COMPILER_NAME gcc clang
 
