@@ -855,9 +855,9 @@ sub startup{
 	my ($time, $mem, @usr);
 
 	my $skip_flag = 0;
-	print "Search for preceding tuples for: ".tuple_to_string($t)."\n";
+#	print "Search for preceding tuples for: ".tuple_to_string($t)."\n";
 	foreach my $p (Using_Ast_Check::get_all_preceding_tuples($t, \@tuples)){
-	    print "PRECEDING TUPLE: ".tuple_to_string($p)."\n";
+#	    print "PRECEDING TUPLE: ".tuple_to_string($p)."\n";
 	    if( ($mem_db->get_result($p) eq "ERR_MEM") or ($time_db->get_result($p) eq "ERR_TME")){
 		$skip_flag = 1; 
 	    }
