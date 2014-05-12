@@ -782,7 +782,7 @@ sub startup{
 #    print ast_to_string($using_ast);
     check_ast($using_ast);
     check_all_scripts(@post_exec_scripts); 
-    print ast_to_string($using_ast);
+#    print ast_to_string($using_ast);
 
     if($dryrun) {print "Warning: THIS IS A DRYRUN, no output file will be generated.\n";}
 
