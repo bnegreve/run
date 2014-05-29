@@ -122,6 +122,7 @@ sub run_child{
     $time = <TIME_TMP>; 
     chop $time; 
     close TIME_TMP; 
+    unlink $time_tmp_file;
     print "Run time : ".($time)." sec.\n";
 
     my $mem = (get_memory_usage())/1024; 
