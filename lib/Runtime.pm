@@ -11,11 +11,13 @@ our @EXPORT = qw(startup);
 
 our $VERSION = '0.01';
 
+use File::Basename;
+use File::Copy; 
 use Using;
 use Using_Ast_Check;
 use Result_Db;
 use System_API;
-use File::Basename;
+
 use vars qw(%parameter_value_space);
 
 our $using_ast; 
@@ -559,7 +561,7 @@ sub save_program_output{
     die if @_ != 1; 
     my ($tuple) = @_;
     my $filename = "$output_dir/output/".tuple_to_output_filename($tuple).".out";
-    system ("mv $tmp_out $filename");
+    move($tmp_out, $filename);
     init_temp_file(); 
 }
 
