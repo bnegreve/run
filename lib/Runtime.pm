@@ -116,6 +116,8 @@ sub run_child{
     waitpid($child_pid, 0); 
     alarm 0;
     if($? != 0){
+	unlink $time_tmp_file;
+	unlink $tmp_out;
 	return  ($current_process_err, $current_process_err, ($current_process_err) x @post_exec_scripts); 
     }
     
@@ -565,7 +567,6 @@ sub save_program_output{
     my ($tuple) = @_;
     my $filename = "$output_dir/output/".tuple_to_output_filename($tuple).".out";
     move($tmp_out, $filename);
-    init_temp_file(); 
 }
 
 # Returns a class specification from a tuple. A class specification is
@@ -768,6 +769,9 @@ sub write_result_files{
 
 
 sub finalize{
+    unlink $tmp_out; 
+    unlink $time_tmp_file; 
+
     die if @_ != 0;
     finalize_readme_file();
     print "Expeperiment finished at ".date_string()."\n";
@@ -900,6 +904,8 @@ sub startup{
 	}
 
 	save_program_output($t); 
+	init_temp_file(); 
+
     }
 
     finalize(); 
