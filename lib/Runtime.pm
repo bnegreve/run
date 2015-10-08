@@ -158,13 +158,14 @@ sub run_child{
 # bin is the binary file name executed
 # info reported is a string describing what is reported, e.g. time. 
 sub print_file_header{
-    die if @_ != 3; 
-    my ($fh, $bin, $info_reported) = @_; 
+    die if @_ != 4; 
+    my ($fh, $tuple, $bin, $info_reported) = @_; 
     my $md5 = md5_file($bin); 
     my $hostname = get_hostname(); 
 
     my $date = date_string();
         my $header_string = <<END;
+# File: @{[tuple_to_result_filename($tuple)]} 
 # Experiment started on: @{[date_string()]}. 
 # Machine hostname: $hostname.
 # Timout for each run $timeout s.  
@@ -714,18 +715,19 @@ sub write_a_result_file{
     die if @_ != 4; 
     my ($result_db, $file_class_tuples, $file_prefix, $info_reported) = @_;
 
-    my $filename = $file_prefix.tuple_to_result_filename($file_class_tuples->[0]);
+    my $tuple = $file_class_tuples->[0]; 
+    my $filename = $file_prefix.tuple_to_result_filename($tuple);
     my $fh; 
     if(not (open $fh, ">$filename")){
 	warning_output("Cannot create result file '$filename': $! Using stdout."); 
 	$fh = \*STDOUT; 
     }
 
-    print_file_header($fh, "/bin/ls", $info_reported);
+    print_file_header($fh, $tuple, "/bin/ls", $info_reported);
     print $fh '# ';
     
     # print first column header ie. parameter names of column parameters
-    my @l_vr = get_value_refs_from_format_spec($file_class_tuples->[0], 'l');
+    my @l_vr = get_value_refs_from_format_spec($tuple, 'l');
     foreach my $i (0..$#l_vr){
 	print $fh value_ref_get_pname($l_vr[$i]);
 	print $fh $CELL_RESULT_SEPARATOR if($i < $#l_vr); 
