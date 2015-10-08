@@ -855,7 +855,8 @@ sub startup{
 	exit(0); 
     }
     else {
-	print "\nEverything seems to be OK. Starting experiments.\n\n";
+	print "\nEverything seems to be OK. Starting experiments.\n";
+	print "Results are going to be in $output_dir.\n\n";
     }
 
     create_readme_file(@argv);
