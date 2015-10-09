@@ -49,7 +49,8 @@ my @runs =();
 
 
 my $output_dir;
-my $tmp_out; # temporary out file.
+my $tmp_out; # temporary file for program stdout.
+my $tmp_err; # temporary file for program stderr.
 my $time_tmp_file; # temporary out file for time process
 my @post_exec_scripts; # user scripts to extract metrics
 #my $current_bin_filename; 
@@ -118,6 +119,7 @@ sub run_child{
     if($? != 0){
 	unlink $time_tmp_file;
 	unlink $tmp_out;
+	unlink $tmp_err;
 	return  ($current_process_err, $current_process_err, ($current_process_err) x @post_exec_scripts); 
     }
     
@@ -246,7 +248,9 @@ sub check_all_scripts{
 sub init_temp_file{
     die if @_ != 0;
     my $out_fh; 
-    ($out_fh, $tmp_out) = create_temp_file("tmp");
+    ($out_fh, $tmp_out) = create_temp_file("tmp.out");
+    close($out_fh);
+    ($out_fh, $tmp_err) = create_temp_file("tmp.err");
     close($out_fh);
     ($out_fh, $time_tmp_file) = create_temp_file("tmp_time");
     close($out_fh); 
@@ -566,8 +570,11 @@ sub tuple_to_output_filename{
 sub save_program_output{
     die if @_ != 1; 
     my ($tuple) = @_;
-    my $filename = "$output_dir/output/".tuple_to_output_filename($tuple).".out";
-    move($tmp_out, $filename);
+    my $output_prefix = "$output_dir/output/".tuple_to_output_filename($tuple); 
+    my $out_filename = $output_prefix.".out";
+    my $err_filename = $output_prefix.".err";
+    move($tmp_out, $out_filename);
+    move($tmp_err, $err_filename);
 }
 
 # Returns a class specification from a tuple. A class specification is
@@ -771,7 +778,8 @@ sub write_result_files{
 
 
 sub finalize{
-    unlink $tmp_out; 
+    unlink $tmp_out;
+    unlink $tmp_err; 
     unlink $time_tmp_file; 
 
     die if @_ != 0;
