@@ -340,7 +340,7 @@ sub finalize_readme_file{
 	print README $line; 
     }
     close READMETMP;
-    print README "Expeperiment finished at ".date_string()."\n";
+    print README "Experiment finished at ".date_string().". (Output directory $output_dir.)\n";
     close README;
     system ("rm -f $output_dir/README.tmp"); 
     
@@ -812,7 +812,7 @@ sub finalize{
 
     die if @_ != 0;
     finalize_readme_file();
-    print "Expeperiment finished at ".date_string()."\n";
+    print "Experiment finished at ".date_string().". (Output directory $output_dir.)\n";
     if( not (-e 'last_run') or 
 	is_runtime_output_dir("last_run")){
 	system('rm -f last_run'); 
