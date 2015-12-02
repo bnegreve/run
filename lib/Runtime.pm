@@ -49,6 +49,8 @@ my @runs =();
 
 
 my $output_dir;
+my $xp_name = ''; 
+
 my $tmp_out; # temporary file for program stdout.
 my $tmp_err; # temporary file for program stderr.
 my $time_tmp_file; # temporary out file for time process
@@ -202,7 +204,15 @@ sub print_info(){
 
 sub output_dir_default_name{
     die if @_ != 0; 
-    my $output_dir = date_string().'/';
+
+    my $output_dir = date_string(); 
+
+    if($xp_name eq ''){
+	$output_dir .= '/';
+    }
+    else{
+	$output_dir .= '_'.$xp_name.'/';
+    }
 
     $output_dir =~ s/ /_/g; 
     $output_dir =~ s/://g;
@@ -210,6 +220,10 @@ sub output_dir_default_name{
     return $output_dir; 
 }
 
+sub set_output_dir{
+    die if @_ != 0; 
+    $output_dir = output_dir_default_name();
+}
 
 # userscript full filename to binary name
 sub scriptpath_to_scriptname{
@@ -253,7 +267,7 @@ sub init_temp_file{
     ($out_fh, $tmp_err) = create_temp_file("tmp.err");
     close($out_fh);
     ($out_fh, $time_tmp_file) = create_temp_file("tmp_time");
-    close($out_fh); 
+    close($out_fh);
 }
 
 sub init{
@@ -293,8 +307,6 @@ sub init{
 	}
     };
 
-    $output_dir = output_dir_default_name();
-    
 # preparing tmp file to store program outputs.
     init_temp_file(); 
 }
@@ -355,7 +367,9 @@ sub print_usage{
     print STDERR "Usage: $runtime_bin_path -p PARAMETER_NAME parameter_value_1 .. parameter_value_n\
  [-p PARAMETER2_NAME parameter2_value_1 .. parameter2_value_n]\
  [-s extract_metric_script1 [-s extract_metric_script2 ...]\
- [-m max_memory_usage (% total)] [ -t timeout value] [ -d (dryrun) ]\
+ [-m max_memory_usage (% total)]\
+ [-n experiment_name]\
+ [-t timeout value] [-d (dryrun)]\
  -u using_expression -- command_line_template\n";
  
     exit 0; 
@@ -367,7 +381,7 @@ sub parse_program_arguments{
     my @argv = @{$_[0]}; 
 
     while (my $arg = shift @argv){
-	if($arg =~ /\-([putmsod-])/){
+	if($arg =~ /\-([putmsnod-])/){
 
 	    ####################
 	    #### parameters ####
@@ -456,11 +470,25 @@ sub parse_program_arguments{
 		}
 	    }
 
+	    #####################
+	    #### use xp name ####
+	    #####################
+	    elsif($1 eq 'n'){
+		if(defined(my $param = shift @argv)){
+		    #FIXME sanitize
+		    $xp_name = $param;
+		}
+		else{
+		    print_usage; 
+		}
+	    }
+
 	    #################################
 	    #### use existing output dir ####
 	    #################################	    
 	    elsif($1 eq 'o'){
 		if(defined(my $param = shift @argv)){
+		    print STDERR "Warning, this option is experimental"; 
 		    $output_dir = $param.'/';
 		}
 		else{
@@ -799,6 +827,7 @@ sub startup{
     my @argv = @_; 
     init(); 
     parse_program_arguments(\@argv);
+    set_output_dir(); 
 #    print ast_to_string($using_ast);
     check_ast($using_ast);
     check_all_scripts(@post_exec_scripts); 
