@@ -120,8 +120,6 @@ sub run_child{
     alarm 0;
     if($? != 0){
 	unlink $time_tmp_file;
-	unlink $tmp_out;
-	unlink $tmp_err;
 	return  ($current_process_err, $current_process_err, ($current_process_err) x @post_exec_scripts); 
     }
     
