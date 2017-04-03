@@ -2,8 +2,8 @@ Runtime is Copyright (C) 2010-2013, Benjamin Negrevergne.
 
 Runtime installation procedure.
 
-SYSTEMWISE INSTALLATION
-------------------------
+SYSTEM INSTALL
+--------------
 
 If you are a system administrator, you can install perl dependencies
 using the system package manager.
@@ -22,8 +22,8 @@ For debian/ubuntu, this should be enough:
    make
    sudo make install
 
-USER LOCAL INSTALLATION
------------------------
+USER INSTALLATION
+-----------------
 
 I.e. for user without permissions. 
 
