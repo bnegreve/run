@@ -49,6 +49,7 @@ my @runs =();
 
 
 my $output_dir;
+my $tmp_dir = ""; 
 my $xp_name = ''; 
 
 my $tmp_out; # temporary file for program stdout.
@@ -221,6 +222,12 @@ sub output_dir_default_name{
 sub set_output_dir{
     die if @_ != 0; 
     $output_dir = output_dir_default_name();
+    if($tmp_dir eq ""){
+	$tmp_dir = $output_dir;
+    }
+    else{
+	print("Using $tmp_dir as temporary directory\n");
+    }
 }
 
 # userscript full filename to binary name
@@ -260,11 +267,11 @@ sub check_all_scripts{
 sub init_temp_file{
     die if @_ != 0;
     my $out_fh; 
-    ($out_fh, $tmp_out) = create_temp_file("tmp.out");
+    ($out_fh, $tmp_out) = create_temp_file($tmp_dir."/tmp/", "output.tmp");
     close($out_fh);
-    ($out_fh, $tmp_err) = create_temp_file("tmp.err");
+    ($out_fh, $tmp_err) = create_temp_file($tmp_dir."/tmp/", "error.tmp");
     close($out_fh);
-    ($out_fh, $time_tmp_file) = create_temp_file("tmp_time");
+    ($out_fh, $time_tmp_file) = create_temp_file($tmp_dir."/tmp/", "time");
     close($out_fh);
 }
 
@@ -304,9 +311,6 @@ sub init{
 	    alarm $CYCLE_LEN;
 	}
     };
-
-# preparing tmp file to store program outputs.
-    init_temp_file(); 
 }
 
 sub create_readme_file{
@@ -353,11 +357,15 @@ sub populate_output_dir{
     system("mkdir -p $output_dir/time"); 
     system("mkdir -p $output_dir/mem"); 
     system("mkdir -p $output_dir/output");
+    system("mkdir -p $tmp_dir/tmp/"); 
 
     for my $script (@post_exec_scripts){
 	my $scriptname = scriptpath_to_scriptname $script; 
 	system("mkdir -p $output_dir/$scriptname"); 
     }
+
+    init_temp_file(); 
+
 }
 
 sub print_usage{
@@ -379,7 +387,7 @@ sub parse_program_arguments{
     my @argv = @{$_[0]}; 
 
     while (my $arg = shift @argv){
-	if($arg =~ /\-([putmsnod-])/){
+	if($arg =~ /\-([putmsnoTd-])/){
 
 	    ####################
 	    #### parameters ####
@@ -481,9 +489,6 @@ sub parse_program_arguments{
 		}
 	    }
 
-	    #################################
-	    #### use existing output dir ####
-	    #################################	    
 	    elsif($1 eq 'o'){
 		if(defined(my $param = shift @argv)){
 		    print STDERR "Warning, this option is experimental"; 
@@ -493,7 +498,18 @@ sub parse_program_arguments{
 		    print_usage;
 		}
 	    }
-
+	    #############################################
+	    #### use different prefix for temp files ####
+	    #############################################	    
+	    elsif($1 eq 'T'){
+		if(defined(my $param = shift @argv)){
+		    $tmp_dir = $param.'/';
+		    print("Using $tmp_dir as temporary storage\n"); 
+		}
+		else{
+		    print_usage;
+		}
+	    }
 	    #################
 	    #### dry run ####
             #################
@@ -511,7 +527,6 @@ sub parse_program_arguments{
 		print_usage;
 		die; 
 	    }
-
 	}
     }
     
@@ -807,6 +822,7 @@ sub finalize{
     unlink $tmp_out;
     unlink $tmp_err; 
     unlink $time_tmp_file; 
+    rmdir $tmp_dir; 
 
     die if @_ != 0;
     finalize_readme_file();
@@ -825,7 +841,7 @@ sub startup{
     my @argv = @_; 
     init(); 
     parse_program_arguments(\@argv);
-    set_output_dir(); 
+    set_output_dir();
 #    print ast_to_string($using_ast);
     check_ast($using_ast);
     check_all_scripts(@post_exec_scripts); 

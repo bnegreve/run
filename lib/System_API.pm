@@ -173,10 +173,14 @@ sub kill_process_tree{
 }
 
 sub create_temp_file{
-    die if @_ != 1; 
-    my ($filename) = @_; 
+    die if @_ != 2; 
+    my ($prefix, $filename) = @_; 
 
-    return tempfile('/tmp/runtime_'.$filename.'_XXXX');
+    if($prefix eq ""){
+	$prefix = '/tmp/runtime_'; 
+    }
+
+    return tempfile($prefix.$filename.'.XXXX');
 }
 
 # return true  if path seems to be a runtime output directory 
