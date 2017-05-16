@@ -22,8 +22,8 @@ For debian/ubuntu, this should be enough:
    make
    sudo make install
 
-USER INSTALLATION
------------------
+USER INSTALL
+------------
 
 I.e. for user without permissions. 
 
@@ -39,7 +39,7 @@ You can install Runtime and its dependencies in your home directory using the CP
 
 3. Download and install the dependencies
     
-    cpan Parse::RecDescent Proc::ProcessTable Digest::MD5
+    cpan Parse::RecDescent Proc::ProcessTable Digest::MD5 Switch
     
 You can now build and install Runtime.
 
