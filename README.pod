@@ -13,11 +13,11 @@ Runtime - Program and run reproducible software experiments with the command lin
  
 =head1 Description 
     
-Runtime should be use to collect and pre-format various statistics
+Runtime is useful use to collect and format various statistics
 such as execution time or memory usage for large batches of program
 executions (runs).  The collected statistics are stored as lines and
 columns into ascii files according to a format specified by the user. 
-These files are meant to by read by I<humans> or I<plotted> with tools such as
+These files are meant to by read by I<humans> or I<plotted> with a tool such as
 gnuplot.
 
 Runs are specified through a command line templated with parameter
